@@ -692,6 +692,34 @@
             border: 1px solid var(--border-color);
             color: var(--text-primary);
             white-space: nowrap;
+            transition: transform 0.18s ease, background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+        }
+
+        .arena-stat-pill.streak-active {
+            background-color: var(--accent);
+            color: var(--accent-fg);
+            border-color: var(--accent);
+        }
+
+        @keyframes streakBump {
+            0% { transform: scale(1); }
+            40% { transform: scale(1.16); }
+            100% { transform: scale(1); }
+        }
+
+        @keyframes streakBreak {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            50% { transform: translateX(5px); }
+            75% { transform: translateX(-3px); }
+        }
+
+        .streak-bump {
+            animation: streakBump 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+
+        .streak-break {
+            animation: streakBreak 0.32s ease;
         }
 
         .arena-progress-wrap {
@@ -808,6 +836,39 @@
             gap: 20px;
             align-items: stretch;
             min-height: 320px;
+        }
+
+        .wayground-options-grid.tf-grid {
+            grid-template-columns: repeat(2, 1fr);
+            max-width: 960px;
+            width: 100%;
+            margin: 0 auto;
+        }
+
+        .wayground-q-badge {
+            display: inline-block;
+            margin-bottom: 14px;
+            font-size: 11.5px;
+            font-weight: 700;
+            letter-spacing: 0.6px;
+            text-transform: uppercase;
+            padding: 4px 12px;
+            border-radius: 6px;
+            background-color: var(--bg-subtle);
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+        }
+
+        .wayground-statement-box {
+            margin-top: 16px;
+            padding: 16px 22px;
+            border-radius: 14px;
+            background-color: var(--bg-subtle);
+            border: 1px solid var(--border-strong);
+            font-size: clamp(17px, 1.8vw, 22px);
+            font-weight: 600;
+            color: var(--text-primary);
+            max-width: 980px;
         }
 
         .wayground-card {
@@ -1202,7 +1263,8 @@
                                 Chọn ảnh từ Thư viện / Chụp ảnh
                                 <input type="file" id="ocr-file-input" accept="image/*" multiple>
                             </label>
-                            <button type="button" class="btn btn-sm" onclick="fillSampleTemplate()">Chèn mẫu định dạng chuẩn</button>
+                            <button type="button" class="btn btn-sm" onclick="fillSampleTemplate()">Chèn mẫu A, B, C, D</button>
+                            <button type="button" class="btn btn-sm" onclick="fillTrueFalseSampleTemplate()">Chèn mẫu Đúng / Sai</button>
                         </div>
                         <div class="ocr-status" id="ocr-status-text">Chưa có ảnh nào được chọn.</div>
                     </div>
@@ -1214,9 +1276,9 @@
                         <button type="button" class="btn btn-sm" style="min-height: 30px; padding: 4px 10px;" onclick="clearCreateForm()">Xóa trắng</button>
                     </div>
                     <div class="form-hint" style="margin-bottom: 6px;">
-                        Định dạng chuẩn: Bắt đầu bằng <strong>Câu X:</strong>, theo sau là 4 dòng <strong>A. B. C. D.</strong> và kết thúc bằng <strong>Đáp án: X</strong>
+                        Hỗ trợ 2 dạng: <strong>(1) Trắc nghiệm 4 lựa chọn:</strong> Câu X: ... A. B. C. D. ... Đáp án: A &nbsp;|&nbsp; <strong>(2) Trắc nghiệm Đúng / Sai:</strong> Câu X: [Mệnh đề] ... Đáp án: Đúng (hoặc Sai)
                     </div>
-                    <textarea id="raw-quiz-input" class="textarea-code" placeholder="Câu 1: Nội dung câu hỏi?&#10;A. Phương án A&#10;B. Phương án B&#10;C. Phương án C&#10;D. Phương án D&#10;Đáp án: A"></textarea>
+                    <textarea id="raw-quiz-input" class="textarea-code" placeholder="Câu 1: Nội dung câu hỏi?&#10;A. Phương án A&#10;B. Phương án B&#10;C. Phương án C&#10;D. Phương án D&#10;Đáp án: A&#10;&#10;Câu 2: Địa chỉ IPv4 có độ dài 128 bit.&#10;Đáp án: Sai"></textarea>
                 </div>
 
                 <div class="parser-bar">
@@ -1258,7 +1320,14 @@
                 <div class="config-grid">
                     <label class="toggle-row">
                         <div class="toggle-info">
-                            <span class="toggle-title">Đảo ngẫu nhiên vị trí 4 thẻ đáp án</span>
+                            <span class="toggle-title">Chế độ phán đoán Đúng / Sai (True / False)</span>
+                            <span class="toggle-sub">Tự động chuyển các câu hỏi A, B, C, D thành mệnh đề để bạn phán đoán là Đúng hay Sai (Câu Đúng/Sai gốc luôn giữ nguyên).</span>
+                        </div>
+                        <input type="checkbox" id="chk-convert-tf" class="checkbox-input">
+                    </label>
+                    <label class="toggle-row">
+                        <div class="toggle-info">
+                            <span class="toggle-title">Đảo ngẫu nhiên vị trí thẻ đáp án</span>
                             <span class="toggle-sub">Chống học vẹt vị trí A, B, C, D như trên Wayground.</span>
                         </div>
                         <input type="checkbox" id="chk-shuffle-options" class="checkbox-input" checked>
@@ -1295,6 +1364,7 @@
                 <div class="arena-top-left">
                     <button type="button" class="btn btn-sm" onclick="exitQuizToLibrary()">← Thoát</button>
                     <div class="arena-stat-pill" id="arena-score-pill">Đúng: 0</div>
+                    <div class="arena-stat-pill" id="arena-streak-pill" title="Chuỗi trả lời đúng liên tiếp (Đứt chuỗi khi chọn sai)">Chuỗi: 0</div>
                 </div>
 
                 <div class="arena-progress-wrap">
@@ -1323,18 +1393,20 @@
             <div class="arena-stage">
                 <div class="wayground-question-box">
                     <div class="wayground-counter-pill" id="player-progress-text">1 / 50</div>
+                    <div class="wayground-q-badge" id="player-q-badge">CHỌN 1 ĐÁP ÁN ĐÚNG</div>
                     <div class="wayground-question-text" id="player-q-text">Nội dung câu hỏi...</div>
+                    <div class="wayground-statement-box" id="player-statement-box" style="display: none;"></div>
                 </div>
 
                 <div class="wayground-options-grid" id="player-options-container">
-                    <!-- 4 Wayground Cards injected here -->
+                    <!-- 4 Wayground Cards or 2 True/False Cards injected here -->
                 </div>
             </div>
 
             <!-- Bottom Navigation & Auto-Advance Progress Indicator -->
             <div class="arena-bottombar">
                 <button type="button" class="btn btn-sm" id="btn-prev-q" onclick="navigateQuestion(-1)">← Câu trước</button>
-                <span class="kb-hint">Mẹo: Bấm phím số <strong>1, 2, 3, 4</strong> trên bàn phím để chọn nhanh</span>
+                <span class="kb-hint" id="player-kb-hint">Mẹo: Bấm phím số <strong>1, 2, 3, 4</strong> trên bàn phím để chọn nhanh</span>
                 <div style="display: flex; gap: 8px;">
                     <button type="button" class="btn btn-primary btn-sm" id="btn-next-q" onclick="navigateQuestion(1)">Câu tiếp theo →</button>
                     <button type="button" class="btn btn-primary btn-sm" id="btn-finish-quiz" style="display: none;" onclick="finishQuizSession()">Nộp bài & Xem điểm</button>
@@ -1351,6 +1423,9 @@
                 <span class="context-eyebrow">HOÀN THÀNH BÀI LÀM</span>
                 <div class="score-big" id="res-score-number">0 / 0</div>
                 <p class="context-desc" id="res-score-percent">Độ chính xác: 0%</p>
+                <div style="margin-top: 10px;">
+                    <span class="meta-pill" id="res-streak-summary" style="font-size: 13.5px; font-weight: 700; padding: 6px 14px;">Chuỗi liên tiếp cao nhất: 0 câu</span>
+                </div>
 
                 <div style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 20px;">
                     <button type="button" class="btn btn-primary" id="btn-retry-wrong" onclick="retryWrongQuestions()">Làm lại các câu sai</button>
@@ -1723,6 +1798,36 @@ C. Một xã hội mạng tích cực
 D. Tăng nguy cơ lừa đảo trực tuyến
 Đáp án: C`;
 
+        const DEFAULT_TF_TIN12_RAW = `Câu 1: Hội thảo Dartmouth năm 1956 được xem là sự kiện đánh dấu sự khởi đầu của lịch sử Trí tuệ nhân tạo (AI).
+Đáp án: Đúng
+
+Câu 2: Phân loại AI theo chức năng chỉ bao gồm AI nhận dạng hình ảnh và AI xử lý ngôn ngữ tự nhiên.
+Đáp án: Sai
+
+Câu 3: Khi nhận câu trả lời từ ChatGPT về kiến thức khoa học, học sinh nên chép nguyên văn và xem đó là chắc chắn đúng mà không cần đối chiếu.
+Đáp án: Sai
+
+Câu 4: Trong mạng cục bộ (LAN), thiết bị Switch chuyển dữ liệu đến đúng cổng kết nối của thiết bị nhận thay vì phát tràn ra mọi cổng như Hub.
+Đáp án: Đúng
+
+Câu 5: Địa chỉ IPv4 có độ dài là 128 bit và địa chỉ MAC gồm 8 ký tự hệ thập lục phân.
+Đáp án: Sai
+
+Câu 6: Giao thức TCP có vai trò đảm bảo truyền dữ liệu tin cậy, đúng thứ tự giữa các thiết bị trên mạng.
+Đáp án: Đúng
+
+Câu 7: Thiết bị Wireless Access Point (WAP) có chức năng chính là biến đổi tín hiệu quang thành bản in trên giấy.
+Đáp án: Sai
+
+Câu 8: Để các máy tính khác trong mạng LAN tìm thấy máy tính đang chia sẻ tài nguyên, chức năng Network discovery cần được bật.
+Đáp án: Đúng
+
+Câu 9: Khi nhận được một thông tin gây sốc chưa rõ nguồn gốc trong nhóm chat, hành động đúng đắn là chuyển tiếp ngay lập tức cho mọi người.
+Đáp án: Sai
+
+Câu 10: Việc xây dựng các ràng buộc pháp lý, đảm bảo tính minh bạch và giám sát chặt chẽ là giải pháp giúp AI phát triển an toàn, bền vững.
+Đáp án: Đúng`;
+
         /* =========================================================
            STATE & STORAGE MANAGEMENT
         ========================================================= */
@@ -1739,6 +1844,8 @@ D. Tăng nguy cơ lừa đảo trực tuyến
         let sessionQuestions = [];
         let currentQIndex = 0;
         let userAnswers = {}; // index -> chosen letter ('A','B','C','D')
+        let currentStreak = 0;
+        let maxStreak = 0;
 
         /* =========================================================
            THEME (LIGHT / DARK) MANAGEMENT
@@ -1780,7 +1887,55 @@ D. Tăng nguy cơ lừa đảo trực tuyến
 
             const qStartRegex = /^C[âa]u\s+\d+\s*[:\.]?\s*(.*)/i;
             const optRegex = /^([A-D])[\.\)]\s*(.*)/i;
-            const ansRegex = /^(?:Đáp\s*án|Dap\s*an)\s*[:\-]?\s*([A-D])/i;
+            const ansRegex = /^(?:Đáp\s*án|Dap\s*an)\s*[:\-]?\s*(.+)/i;
+
+            function normalizeTrueFalseToken(token) {
+                if (!token) return null;
+                const clean = token.trim().toLowerCase();
+                if (['đúng', 'dung', 'đ', 'd', 'true', 't'].includes(clean)) return 'A'; // A = ĐÚNG
+                if (['sai', 's', 'false', 'f'].includes(clean)) return 'B'; // B = SAI
+                return null;
+            }
+
+            function finalizeQuestion(qObj) {
+                if (!qObj || !qObj.question) return;
+                const hasABCD = Boolean(qObj.options.A && qObj.options.B && (qObj.options.C || qObj.options.D));
+                const tfMapped = normalizeTrueFalseToken(qObj.rawAnswer);
+
+                // Case 1: Native True / False question (no C/D options, or answer is Đúng/Sai)
+                if (tfMapped && (!qObj.options.C && !qObj.options.D)) {
+                    questions.push({
+                        type: 'tf',
+                        question: qObj.question.trim(),
+                        options: { A: 'Đúng', B: 'Sai' },
+                        correct: tfMapped
+                    });
+                    return;
+                }
+
+                // Case 2: Standard 4-option A, B, C, D question
+                const letterAns = (qObj.rawAnswer || '').trim().toUpperCase();
+                if (hasABCD && ['A', 'B', 'C', 'D'].includes(letterAns)) {
+                    questions.push({
+                        type: 'mcq',
+                        question: qObj.question.trim(),
+                        options: {
+                            A: qObj.options.A || '',
+                            B: qObj.options.B || '',
+                            C: qObj.options.C || '',
+                            D: qObj.options.D || ''
+                        },
+                        correct: letterAns
+                    });
+                } else if (['A', 'B'].includes(letterAns) && qObj.options.A && qObj.options.B && !qObj.options.C) {
+                    questions.push({
+                        type: 'tf',
+                        question: qObj.question.trim(),
+                        options: { A: qObj.options.A, B: qObj.options.B },
+                        correct: letterAns
+                    });
+                }
+            }
 
             for (let rawLine of lines) {
                 const line = rawLine.trim();
@@ -1788,13 +1943,11 @@ D. Tăng nguy cơ lừa đảo trực tuyến
 
                 const qMatch = line.match(qStartRegex);
                 if (qMatch) {
-                    if (currentQ && currentQ.question && currentQ.options.A && currentQ.options.B && currentQ.correct) {
-                        questions.push(currentQ);
-                    }
+                    finalizeQuestion(currentQ);
                     currentQ = {
                         question: qMatch[1].trim(),
                         options: { A: '', B: '', C: '', D: '' },
-                        correct: ''
+                        rawAnswer: ''
                     };
                     currentOptKey = null;
                     continue;
@@ -1804,7 +1957,7 @@ D. Tăng nguy cơ lừa đảo trực tuyến
 
                 const ansMatch = line.match(ansRegex);
                 if (ansMatch) {
-                    currentQ.correct = ansMatch[1].toUpperCase();
+                    currentQ.rawAnswer = ansMatch[1].trim();
                     currentOptKey = null;
                     continue;
                 }
@@ -1825,10 +1978,7 @@ D. Tăng nguy cơ lừa đảo trực tuyến
                 }
             }
 
-            if (currentQ && currentQ.question && currentQ.options.A && currentQ.options.B && currentQ.correct) {
-                questions.push(currentQ);
-            }
-
+            finalizeQuestion(currentQ);
             return questions;
         }
 
@@ -1844,15 +1994,43 @@ D. Tăng nguy cơ lừa đảo trực tuyến
 
             if (!Array.isArray(decks) || decks.length === 0) {
                 const defaultParsed = parseQuizText(DEFAULT_TIN12_RAW);
-                decks = [{
-                    id: 'deck_tin12_tnh',
-                    title: 'Đề cương Giữa kì 1 - Tin học 12 (THPT Trần Nguyên Hãn)',
-                    rawText: DEFAULT_TIN12_RAW,
-                    questions: defaultParsed,
-                    lastScore: null,
-                    updatedAt: 'Mặc định'
-                }];
+                const defaultTFParsed = parseQuizText(DEFAULT_TF_TIN12_RAW);
+                decks = [
+                    {
+                        id: 'deck_tin12_tnh',
+                        title: 'Đề cương Giữa kì 1 - Tin học 12 (THPT Trần Nguyên Hãn)',
+                        rawText: DEFAULT_TIN12_RAW,
+                        questions: defaultParsed,
+                        lastScore: null,
+                        bestStreak: 0,
+                        updatedAt: 'Mặc định'
+                    },
+                    {
+                        id: 'deck_tin12_tf_tnh',
+                        title: 'Trắc nghiệm Đúng / Sai - Tin học 12 (THPT Trần Nguyên Hãn)',
+                        rawText: DEFAULT_TF_TIN12_RAW,
+                        questions: defaultTFParsed,
+                        lastScore: null,
+                        bestStreak: 0,
+                        updatedAt: 'Đúng / Sai'
+                    }
+                ];
                 saveDecksToStorage();
+            } else {
+                // Ensure the True/False default deck exists if upgrading from older storage
+                const hasTfDeck = decks.some(d => d.id === 'deck_tin12_tf_tnh');
+                if (!hasTfDeck) {
+                    decks.push({
+                        id: 'deck_tin12_tf_tnh',
+                        title: 'Trắc nghiệm Đúng / Sai - Tin học 12 (THPT Trần Nguyên Hãn)',
+                        rawText: DEFAULT_TF_TIN12_RAW,
+                        questions: parseQuizText(DEFAULT_TF_TIN12_RAW),
+                        lastScore: null,
+                        bestStreak: 0,
+                        updatedAt: 'Đúng / Sai'
+                    });
+                    saveDecksToStorage();
+                }
             }
         }
 
@@ -1945,9 +2123,20 @@ D. Tăng nguy cơ lừa đảo trực tuyến
             }
 
             container.innerHTML = decks.map(deck => {
+                const tfCount = deck.questions.filter(q => q.type === 'tf').length;
+                const typeBadge = tfCount === deck.questions.length
+                    ? `<span class="meta-pill">Đúng / Sai (${deck.questions.length} câu)</span>`
+                    : tfCount > 0
+                        ? `<span class="meta-pill">${deck.questions.length} câu (Có ${tfCount} câu Đúng/Sai)</span>`
+                        : `<span class="meta-pill">${deck.questions.length} câu trắc nghiệm</span>`;
+
                 const scoreBadge = deck.lastScore !== null && deck.lastScore !== undefined
                     ? `<span class="meta-pill" style="color: var(--correct-text); background: var(--correct-bg);">Lần cuối: ${deck.lastScore}</span>`
                     : `<span class="meta-pill">Chưa làm lần nào</span>`;
+
+                const streakBadge = deck.bestStreak && deck.bestStreak > 0
+                    ? `<span class="meta-pill">Chuỗi kỷ lục: ${deck.bestStreak}</span>`
+                    : '';
 
                 return `
                     <article class="deck-card">
@@ -1955,8 +2144,9 @@ D. Tăng nguy cơ lừa đảo trực tuyến
                             <div>
                                 <h2 class="deck-title">${escapeHtml(deck.title)}</h2>
                                 <div class="deck-meta">
-                                    <span class="meta-pill">${deck.questions.length} câu trắc nghiệm</span>
+                                    ${typeBadge}
                                     ${scoreBadge}
+                                    ${streakBadge}
                                 </div>
                             </div>
                         </div>
@@ -2001,10 +2191,13 @@ D. Tăng nguy cơ lừa đảo trực tuyến
         function updateLiveParserCount() {
             const parsed = parseQuizText(rawQuizInput.value);
             const countEl = document.getElementById('live-parse-count');
-            countEl.textContent = `${parsed.length} câu hợp lệ được nhận diện`;
+            const tfCount = parsed.filter(q => q.type === 'tf').length;
+            const mcqCount = parsed.length - tfCount;
             if (parsed.length > 0) {
+                countEl.textContent = `${parsed.length} câu hợp lệ (${mcqCount} câu ABCD, ${tfCount} câu Đúng/Sai)`;
                 countEl.classList.add('valid');
             } else {
+                countEl.textContent = `0 câu hợp lệ được nhận diện`;
                 countEl.classList.remove('valid');
             }
         }
@@ -2030,6 +2223,24 @@ D. DNS
             }
             updateLiveParserCount();
             showToast('Đã chèn mẫu định dạng chuẩn');
+        }
+
+        function fillTrueFalseSampleTemplate() {
+            const sample = `Câu 1: Trong mạng LAN, thiết bị Switch chuyển dữ liệu đến đúng cổng kết nối dựa trên địa chỉ thiết bị nhận.
+Đáp án: Đúng
+
+Câu 2: Địa chỉ IPv4 có độ dài là 128 bit.
+Đáp án: Sai
+
+Câu 3: Giao thức TCP hỗ trợ truyền dữ liệu tin cậy và đúng thứ tự.
+Đáp án: Đúng`;
+            const cur = rawQuizInput.value.trim();
+            rawQuizInput.value = cur ? (cur + '\n\n' + sample) : sample;
+            if (!document.getElementById('deck-title-input').value.trim()) {
+                document.getElementById('deck-title-input').value = 'Bộ đề Trắc nghiệm Đúng / Sai';
+            }
+            updateLiveParserCount();
+            showToast('Đã chèn mẫu câu hỏi Đúng / Sai');
         }
 
         function clearCreateForm() {
@@ -2119,8 +2330,11 @@ D. DNS
             if (!deck) return;
             selectedDeckId = deckId;
 
+            const allTF = deck.questions.every(q => q.type === 'tf');
+            document.getElementById('chk-convert-tf').checked = allTF;
+
             document.getElementById('setup-deck-title').textContent = deck.title;
-            document.getElementById('setup-deck-meta').textContent = `Tổng số: ${deck.questions.length} câu trắc nghiệm`;
+            document.getElementById('setup-deck-meta').textContent = `Tổng số: ${deck.questions.length} câu hỏi`;
             showSubView('view-setup', 'Mục: Chuẩn bị làm bài', false);
         }
 
@@ -2139,9 +2353,11 @@ D. DNS
             return copy;
         }
 
-        function buildSessionQuestions(sourceQuestions, shuffleQ, shuffleOpt) {
+        function buildSessionQuestions(sourceQuestions, shuffleQ, shuffleOpt, convertMCQToTF = false) {
             let list = sourceQuestions.map(q => ({
+                type: q.type || 'mcq',
                 question: q.question,
+                statement: q.statement || null,
                 options: { ...q.options },
                 correct: q.correct
             }));
@@ -2150,9 +2366,44 @@ D. DNS
                 list = shuffleArray(list);
             }
 
-            if (shuffleOpt) {
-                const keys = ['A', 'B', 'C', 'D'];
-                list = list.map(q => {
+            list = list.map(q => {
+                // If already a native True/False question, keep 2 fixed cards: A = Đúng, B = Sai
+                if (q.type === 'tf') {
+                    return {
+                        type: 'tf',
+                        question: q.question,
+                        statement: null,
+                        options: { A: 'Đúng', B: 'Sai' },
+                        correct: q.correct
+                    };
+                }
+
+                // If user enabled "Chuyển sang chế độ Phán đoán Đúng / Sai" for an ABCD question
+                if (convertMCQToTF) {
+                    const isTrueStatement = Math.random() < 0.5;
+                    const allKeys = ['A', 'B', 'C', 'D'].filter(k => q.options[k]);
+                    const wrongKeys = allKeys.filter(k => k !== q.correct);
+                    let chosenStatement = q.options[q.correct];
+                    let expectedAns = 'A'; // A = Đúng, B = Sai
+
+                    if (!isTrueStatement && wrongKeys.length > 0) {
+                        const randomWrongKey = wrongKeys[Math.floor(Math.random() * wrongKeys.length)];
+                        chosenStatement = q.options[randomWrongKey];
+                        expectedAns = 'B'; // Because statement is wrong, choosing "Sai" (B) is the correct answer!
+                    }
+
+                    return {
+                        type: 'tf',
+                        question: q.question,
+                        statement: `Nhận định: "${chosenStatement}"`,
+                        options: { A: 'Đúng', B: 'Sai' },
+                        correct: expectedAns
+                    };
+                }
+
+                // Standard 4-option ABCD question
+                if (shuffleOpt) {
+                    const keys = ['A', 'B', 'C', 'D'];
                     const correctContent = q.options[q.correct];
                     const entries = shuffleArray([
                         q.options.A,
@@ -2169,12 +2420,16 @@ D. DNS
                         }
                     });
                     return {
+                        type: 'mcq',
                         question: q.question,
+                        statement: null,
                         options: newOptions,
                         correct: newCorrect
                     };
-                });
-            }
+                }
+
+                return q;
+            });
 
             return list;
         }
@@ -2185,13 +2440,16 @@ D. DNS
 
             const shuffleOpt = document.getElementById('chk-shuffle-options').checked;
             const shuffleQ = document.getElementById('chk-shuffle-questions').checked;
+            const convertTF = document.getElementById('chk-convert-tf').checked;
             autoAdvanceEnabled = document.getElementById('chk-auto-advance').checked;
             updateAutoAdvanceBtnText();
 
             const baseQuestions = customQuestions || deck.questions;
-            sessionQuestions = buildSessionQuestions(baseQuestions, shuffleQ, shuffleOpt);
+            sessionQuestions = buildSessionQuestions(baseQuestions, shuffleQ, shuffleOpt, convertTF);
             currentQIndex = 0;
             userAnswers = {};
+            currentStreak = 0;
+            maxStreak = 0;
 
             document.getElementById('palette-drawer').style.display = 'none';
             showSubView('view-player', 'Đang làm bài', true);
@@ -2214,24 +2472,67 @@ D. DNS
             }
         }
 
-        function updateLiveScorePill() {
+        function updateLiveScorePill(streakAnimType = null) {
             const correctCount = Object.keys(userAnswers).filter(idx => userAnswers[idx] === sessionQuestions[idx].correct).length;
             const pill = document.getElementById('arena-score-pill');
             if (pill) {
                 pill.textContent = `Đúng: ${correctCount}`;
             }
+
+            const streakPill = document.getElementById('arena-streak-pill');
+            if (streakPill) {
+                streakPill.textContent = maxStreak > 0
+                    ? `Chuỗi: ${currentStreak} (Kỷ lục: ${maxStreak})`
+                    : `Chuỗi: ${currentStreak}`;
+                streakPill.classList.toggle('streak-active', currentStreak >= 2);
+
+                if (streakAnimType === 'bump') {
+                    streakPill.classList.remove('streak-bump', 'streak-break');
+                    void streakPill.offsetWidth;
+                    streakPill.classList.add('streak-bump');
+                } else if (streakAnimType === 'break') {
+                    streakPill.classList.remove('streak-bump', 'streak-break');
+                    void streakPill.offsetWidth;
+                    streakPill.classList.add('streak-break');
+                }
+            }
         }
 
-        function renderActiveQuestion(animateTransition = false) {
+        function renderActiveQuestion(animateTransition = false, streakAnimType = null) {
             clearAutoAdvanceTimer();
             const total = sessionQuestions.length;
             const q = sessionQuestions[currentQIndex];
             const chosen = userAnswers[currentQIndex];
+            const isTF = (q.type === 'tf');
 
             document.getElementById('player-progress-text').textContent = `${currentQIndex + 1} / ${total}`;
             document.getElementById('player-progress-bar').style.width = `${((currentQIndex + 1) / total) * 100}%`;
             document.getElementById('player-q-text').textContent = q.question;
-            updateLiveScorePill();
+
+            const qBadge = document.getElementById('player-q-badge');
+            if (qBadge) {
+                qBadge.textContent = isTF ? 'TRẮC NGHIỆM ĐÚNG / SAI — HÃY PHÁN ĐOÁN MỆNH ĐỀ' : 'CHỌN 1 ĐÁP ÁN ĐÚNG';
+            }
+
+            const stmtBox = document.getElementById('player-statement-box');
+            if (stmtBox) {
+                if (q.statement) {
+                    stmtBox.style.display = 'block';
+                    stmtBox.textContent = q.statement;
+                } else {
+                    stmtBox.style.display = 'none';
+                    stmtBox.textContent = '';
+                }
+            }
+
+            const kbHint = document.getElementById('player-kb-hint');
+            if (kbHint) {
+                kbHint.innerHTML = isTF
+                    ? 'Mẹo: Bấm phím <strong>1 (Đúng)</strong> hoặc <strong>2 (Sai)</strong> trên bàn phím'
+                    : 'Mẹo: Bấm phím số <strong>1, 2, 3, 4</strong> trên bàn phím để chọn nhanh';
+            }
+
+            updateLiveScorePill(streakAnimType);
 
             const qBox = document.querySelector('.wayground-question-box');
             if (animateTransition && qBox) {
@@ -2241,9 +2542,10 @@ D. DNS
             }
 
             const optsContainer = document.getElementById('player-options-container');
+            optsContainer.classList.toggle('tf-grid', isTF);
             optsContainer.innerHTML = '';
 
-            const keys = ['A', 'B', 'C', 'D'];
+            const keys = isTF ? ['A', 'B'] : ['A', 'B', 'C', 'D'];
             keys.forEach((key, idx) => {
                 const btn = document.createElement('button');
                 btn.type = 'button';
@@ -2272,9 +2574,13 @@ D. DNS
                     }
                 }
 
+                const labelDisplay = isTF
+                    ? `${escapeHtml(q.options[key]).toUpperCase()}`
+                    : `${key}. ${escapeHtml(q.options[key])}`;
+
                 btn.innerHTML = `
                     <span class="wayground-key-badge">${idx + 1}</span>
-                    <div class="wayground-card-text">${key}. ${escapeHtml(q.options[key])}</div>
+                    <div class="wayground-card-text" style="${isTF ? 'font-size: clamp(20px, 2vw, 26px); font-weight: 700;' : ''}">${labelDisplay}</div>
                 `;
                 btn.onclick = () => handleSelectOption(key);
                 optsContainer.appendChild(btn);
@@ -2290,6 +2596,9 @@ D. DNS
         }
 
         function handleSelectOption(key) {
+            const q = sessionQuestions[currentQIndex];
+            if (!q) return;
+            if (q.type === 'tf' && !['A', 'B'].includes(key)) return;
             if (quizMode === 'practice' && userAnswers[currentQIndex]) {
                 return;
             }
@@ -2301,7 +2610,24 @@ D. DNS
             setTimeout(() => {
                 const isFirstTimeAnswering = !userAnswers[currentQIndex];
                 userAnswers[currentQIndex] = key;
-                renderActiveQuestion(false);
+
+                let streakAnim = null;
+                if (isFirstTimeAnswering) {
+                    if (key === q.correct) {
+                        currentStreak++;
+                        if (currentStreak > maxStreak) {
+                            maxStreak = currentStreak;
+                        }
+                        streakAnim = 'bump';
+                    } else {
+                        if (currentStreak > 0) {
+                            streakAnim = 'break';
+                        }
+                        currentStreak = 0;
+                    }
+                }
+
+                renderActiveQuestion(false, streakAnim);
 
                 // Wayground Auto-Advance Mechanic
                 if (autoAdvanceEnabled && isFirstTimeAnswering) {
@@ -2418,11 +2744,17 @@ D. DNS
             const percent = Math.round((correctCount / total) * 100);
             document.getElementById('res-score-number').textContent = `${correctCount} / ${total}`;
             document.getElementById('res-score-percent').textContent = `Độ chính xác: ${percent}% (${total - correctCount} câu sai / chưa làm)`;
+            document.getElementById('res-streak-summary').textContent = `Chuỗi liên tiếp cao nhất: ${maxStreak} câu`;
 
-            // Save score to deck
+            // Save score and best streak to deck
             const deck = decks.find(d => d.id === selectedDeckId);
-            if (deck && total === deck.questions.length) {
-                deck.lastScore = `${correctCount}/${total} (${percent}%)`;
+            if (deck) {
+                if (total === deck.questions.length) {
+                    deck.lastScore = `${correctCount}/${total} (${percent}%)`;
+                }
+                if (!deck.bestStreak || maxStreak > deck.bestStreak) {
+                    deck.bestStreak = maxStreak;
+                }
                 saveDecksToStorage();
             }
 
@@ -2440,14 +2772,27 @@ D. DNS
                     ? `<span style="color: var(--correct-text); font-weight: 700;">[Đúng]</span>`
                     : `<span style="color: var(--wrong-text); font-weight: 700;">[Sai]</span>`;
 
+                const stmtLine = q.statement
+                    ? `<div style="margin-bottom: 6px; font-weight: 600; color: var(--text-primary);">${escapeHtml(q.statement)}</div>`
+                    : '';
+
+                const userChoiceText = u
+                    ? (q.type === 'tf' ? escapeHtml(q.options[u]) : `${u}. ${escapeHtml(q.options[u])}`)
+                    : 'Chưa chọn';
+
+                const correctChoiceText = q.type === 'tf'
+                    ? escapeHtml(q.options[q.correct])
+                    : `${q.correct}. ${escapeHtml(q.options[q.correct])}`;
+
                 return `
                     <div class="review-item">
                         <div class="review-q">${statusBadge} Câu ${idx + 1}: ${escapeHtml(q.question)}</div>
+                        ${stmtLine}
                         <div style="color: var(--text-secondary); margin-bottom: 4px;">
-                            Bạn chọn: <strong>${u ? `${u}. ${escapeHtml(q.options[u])}` : 'Chưa chọn'}</strong>
+                            Bạn chọn: <strong>${userChoiceText}</strong>
                         </div>
                         <div style="color: var(--correct-text); font-weight: 600;">
-                            Đáp án đúng: ${q.correct}. ${escapeHtml(q.options[q.correct])}
+                            Đáp án đúng: ${correctChoiceText}
                         </div>
                     </div>
                 `;
