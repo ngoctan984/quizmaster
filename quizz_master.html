@@ -1,0 +1,2486 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>QuizMaster — Hệ thống Luyện Trắc Nghiệm</title>
+    <!-- Tesseract.js for real Vietnamese OCR -->
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    <style>
+        :root {
+            --bg-app: #F6F6F7;
+            --bg-surface: #FFFFFF;
+            --bg-elevated: #FAFAFB;
+            --bg-subtle: #EFEFF1;
+            --bg-track: #E4E4E7;
+            --text-primary: #09090B;
+            --text-secondary: #52525B;
+            --text-muted: #71717A;
+            --border-color: #E4E4E7;
+            --border-strong: #D4D4D8;
+            --accent: #09090B;
+            --accent-fg: #FFFFFF;
+            --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
+            --shadow-hover: 0 8px 20px rgba(0, 0, 0, 0.06);
+            
+            --correct-solid: #16A34A;
+            --correct-bg: #F0FDF4;
+            --correct-border: #22C55E;
+            --correct-text: #15803D;
+            
+            --wrong-solid: #DC2626;
+            --wrong-bg: #FEF2F2;
+            --wrong-border: #EF4444;
+            --wrong-text: #B91C1C;
+
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+            --font-sans: -apple-system, BlinkMacSystemFont, "Inter", "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+        }
+
+        [data-theme="dark"] {
+            --bg-app: #09090B;
+            --bg-surface: #121215;
+            --bg-elevated: #18181C;
+            --bg-subtle: #1F1F24;
+            --bg-track: #27272A;
+            --text-primary: #FAFAFA;
+            --text-secondary: #A1A1AA;
+            --text-muted: #71717A;
+            --border-color: #27272A;
+            --border-strong: #3F3F46;
+            --accent: #FAFAFA;
+            --accent-fg: #09090B;
+            --shadow-card: 0 2px 6px rgba(0, 0, 0, 0.35);
+            --shadow-hover: 0 10px 24px rgba(0, 0, 0, 0.5);
+
+            --correct-solid: #16A34A;
+            --correct-bg: rgba(22, 163, 74, 0.16);
+            --correct-border: #22C55E;
+            --correct-text: #4ADE80;
+
+            --wrong-solid: #DC2626;
+            --wrong-bg: rgba(220, 38, 38, 0.16);
+            --wrong-border: #EF4444;
+            --wrong-text: #F87171;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: var(--font-sans);
+            background-color: var(--bg-app);
+            color: var(--text-primary);
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+            min-height: 100vh;
+            transition: background-color 0.2s ease, color 0.2s ease;
+        }
+
+        /* Top Sticky Navigation Bar */
+        .top-header {
+            position: sticky;
+            top: 0;
+            z-index: 40;
+            background-color: var(--bg-app);
+            border-bottom: 1px solid var(--border-color);
+            padding: 14px 20px;
+            transition: background-color 0.2s ease, border-color 0.2s ease;
+        }
+
+        .header-inner {
+            max-width: 860px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .brand-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .brand-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .brand-title {
+            font-size: 18px;
+            font-weight: 700;
+            letter-spacing: -0.4px;
+            color: var(--text-primary);
+            cursor: pointer;
+        }
+
+        .domain-badge {
+            font-size: 11px;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 6px;
+            background-color: var(--bg-subtle);
+            color: var(--text-secondary);
+            border: 1px solid var(--border-color);
+        }
+
+        .header-right-controls {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .active-location-pill {
+            font-size: 12px;
+            font-weight: 600;
+            padding: 5px 11px;
+            border-radius: 999px;
+            background-color: var(--bg-surface);
+            color: var(--text-secondary);
+            border: 1px solid var(--border-color);
+        }
+
+        .theme-toggle-btn {
+            min-height: 34px;
+            padding: 5px 12px;
+            border-radius: 999px;
+            border: 1px solid var(--border-color);
+            background-color: var(--bg-surface);
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .theme-toggle-btn:hover {
+            border-color: var(--text-primary);
+        }
+
+        /* High-Contrast Segmented Control */
+        .segmented-nav {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            background-color: var(--bg-subtle);
+            padding: 4px;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border-color);
+            gap: 4px;
+        }
+
+        .seg-btn {
+            min-height: 44px;
+            border: none;
+            border-radius: 8px;
+            background: transparent;
+            color: var(--text-secondary);
+            font-family: inherit;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.18s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 0 12px;
+        }
+
+        .seg-btn:hover {
+            color: var(--text-primary);
+        }
+
+        .seg-btn .status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background-color: transparent;
+            transition: background-color 0.18s ease;
+        }
+
+        .seg-btn.active {
+            background-color: var(--accent);
+            color: var(--accent-fg);
+            box-shadow: var(--shadow-card);
+        }
+
+        .seg-btn.active .status-dot {
+            background-color: var(--accent-fg);
+        }
+
+        .seg-count {
+            font-size: 11px;
+            font-weight: 700;
+            padding: 2px 7px;
+            border-radius: 999px;
+            background-color: var(--bg-track);
+            color: var(--text-primary);
+        }
+
+        .seg-btn.active .seg-count {
+            background-color: rgba(128, 128, 128, 0.28);
+            color: var(--accent-fg);
+        }
+
+        /* Main Container */
+        .main-container {
+            max-width: 980px;
+            margin: 0 auto;
+            padding: 24px 16px 64px;
+        }
+
+        .main-container.arena-mode {
+            max-width: 1480px;
+            width: 100%;
+            padding: 14px 24px 20px;
+        }
+
+        .view {
+            display: none;
+            flex-direction: column;
+            gap: 20px;
+            animation: viewFade 0.2s ease-out;
+        }
+
+        .view.active {
+            display: flex;
+        }
+
+        @keyframes viewFade {
+            from { opacity: 0; transform: translateY(4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Context Header Banner (Natural soft surface without thick black left bar) */
+        .context-banner {
+            background-color: var(--bg-surface);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 22px 24px;
+            box-shadow: var(--shadow-card);
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .context-eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.7px;
+            color: var(--text-secondary);
+            background-color: var(--bg-subtle);
+            border: 1px solid var(--border-color);
+            padding: 4px 10px;
+            border-radius: 6px;
+            width: fit-content;
+        }
+
+        .context-title {
+            font-size: 23px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            color: var(--text-primary);
+        }
+
+        .context-desc {
+            font-size: 14px;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        /* Step Indicator in Create Mode */
+        .workflow-steps {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 8px;
+            padding-top: 14px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .step-item {
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-muted);
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .step-item strong {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        /* Cards & Panels */
+        .card {
+            background-color: var(--bg-surface);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 22px;
+            box-shadow: var(--shadow-card);
+        }
+
+        .section-label {
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* Quiz Library List */
+        .deck-list {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+        }
+
+        .deck-card {
+            background-color: var(--bg-surface);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 20px 22px;
+            box-shadow: var(--shadow-card);
+            transition: border-color 0.15s ease, transform 0.15s ease;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .deck-card:hover {
+            border-color: var(--border-strong);
+        }
+
+        .deck-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 12px;
+        }
+
+        .deck-title {
+            font-size: 18px;
+            font-weight: 600;
+            letter-spacing: -0.3px;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+        }
+
+        .deck-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .meta-pill {
+            background-color: var(--bg-subtle);
+            border: 1px solid var(--border-color);
+            padding: 3px 10px;
+            border-radius: 6px;
+            font-weight: 500;
+        }
+
+        .deck-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            padding-top: 14px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        /* Buttons */
+        .btn {
+            font-family: inherit;
+            font-size: 14px;
+            font-weight: 600;
+            min-height: 44px;
+            padding: 10px 18px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border-color);
+            background-color: var(--bg-surface);
+            color: var(--text-primary);
+            cursor: pointer;
+            transition: all 0.15s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            text-decoration: none;
+            user-select: none;
+            gap: 6px;
+        }
+
+        .btn:hover:not(:disabled) {
+            border-color: var(--text-primary);
+            background-color: var(--bg-subtle);
+        }
+
+        .btn:active:not(:disabled) {
+            transform: translateY(1px);
+        }
+
+        .btn-primary {
+            background-color: var(--accent);
+            color: var(--accent-fg);
+            border-color: var(--accent);
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            opacity: 0.9;
+            background-color: var(--accent);
+            color: var(--accent-fg);
+        }
+
+        .btn-danger {
+            color: var(--wrong-text);
+            border-color: var(--border-color);
+        }
+
+        .btn-danger:hover:not(:disabled) {
+            background-color: var(--wrong-bg);
+            border-color: var(--wrong-border);
+        }
+
+        .btn-sm {
+            min-height: 36px;
+            padding: 6px 12px;
+            font-size: 13px;
+        }
+
+        .btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        /* Form Controls */
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 18px;
+        }
+
+        .form-label {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .form-hint {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .input-text, .textarea-code {
+            width: 100%;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            background-color: var(--bg-elevated);
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 15px;
+            padding: 12px 14px;
+            outline: none;
+            transition: border-color 0.15s ease;
+        }
+
+        .input-text {
+            min-height: 46px;
+        }
+
+        .textarea-code {
+            font-family: var(--font-mono);
+            font-size: 13.5px;
+            min-height: 250px;
+            line-height: 1.55;
+            resize: vertical;
+        }
+
+        .input-text:focus, .textarea-code:focus {
+            border-color: var(--accent);
+            background-color: var(--bg-surface);
+        }
+
+        /* OCR Upload Zone */
+        .ocr-box {
+            border: 1px dashed var(--border-strong);
+            background-color: var(--bg-elevated);
+            border-radius: var(--radius-md);
+            padding: 20px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .ocr-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            width: 100%;
+            justify-content: center;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .ocr-status {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+
+        /* Live Parser Status Bar */
+        .parser-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 14px;
+            background-color: var(--bg-subtle);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            margin-bottom: 16px;
+        }
+
+        .parser-count {
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .parser-count.valid {
+            color: var(--correct-text);
+        }
+
+        /* Settings Modal / Config Panel before starting Quiz */
+        .config-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin: 14px 0;
+        }
+
+        .toggle-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 14px 16px;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            background-color: var(--bg-elevated);
+            cursor: pointer;
+            min-height: 54px;
+        }
+
+        .toggle-info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            padding-right: 12px;
+        }
+
+        .toggle-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .toggle-sub {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .checkbox-input {
+            width: 18px;
+            height: 18px;
+            accent-color: var(--accent);
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        .mode-selector {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .mode-card {
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            cursor: pointer;
+            background-color: var(--bg-elevated);
+            transition: all 0.15s ease;
+        }
+
+        .mode-card.selected {
+            border-color: var(--accent);
+            background-color: var(--bg-surface);
+            box-shadow: inset 0 0 0 1px var(--accent);
+        }
+
+        .mode-card-title {
+            font-size: 15px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .mode-card-desc {
+            font-size: 12.5px;
+            color: var(--text-secondary);
+        }
+
+        /* =========================================================
+           WAYGROUND-STYLE FULL-VIEWPORT QUIZ ARENA (MINIMALIST)
+        ========================================================= */
+        #view-player.active {
+            min-height: calc(100vh - 34px);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            gap: 18px;
+        }
+
+        .arena-topbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 14px;
+            padding: 12px 20px;
+            background-color: var(--bg-surface);
+            border: 1px solid var(--border-color);
+            border-radius: 999px;
+            box-shadow: var(--shadow-card);
+        }
+
+        .arena-top-left, .arena-top-right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .arena-stat-pill {
+            font-size: 13px;
+            font-weight: 700;
+            padding: 6px 14px;
+            border-radius: 999px;
+            background-color: var(--bg-subtle);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            white-space: nowrap;
+        }
+
+        .arena-progress-wrap {
+            flex: 1;
+            max-width: 560px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .progress-track {
+            width: 100%;
+            height: 8px;
+            background-color: var(--bg-track);
+            border-radius: 999px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background-color: var(--accent);
+            width: 0%;
+            transition: width 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+
+        /* Question Change Animations (Slide & Fade) */
+        @keyframes questionTransitionIn {
+            0% {
+                opacity: 0;
+                transform: translateY(14px) scale(0.992);
+            }
+            100% {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        @keyframes optionCardStaggerIn {
+            0% {
+                opacity: 0;
+                transform: translateY(18px);
+            }
+            100% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .animate-question-change {
+            animation: questionTransitionIn 0.28s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+        }
+
+        .animate-card-change {
+            opacity: 0;
+            animation: optionCardStaggerIn 0.3s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+        }
+
+        /* Main Arena Stage: Wide & Tall Question Board + 4 Large Option Cards */
+        .arena-stage {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 24px;
+            margin: 6px 0;
+            width: 100%;
+        }
+
+        .wayground-question-box {
+            position: relative;
+            background-color: var(--bg-surface);
+            border: 1.5px solid var(--border-color);
+            border-radius: 22px;
+            padding: 52px 44px 46px;
+            min-height: 245px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            box-shadow: var(--shadow-card);
+        }
+
+        .wayground-counter-pill {
+            position: absolute;
+            top: -15px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: var(--bg-surface);
+            color: var(--text-primary);
+            border: 1.5px solid var(--border-strong);
+            padding: 5px 18px;
+            border-radius: 999px;
+            font-size: 13.5px;
+            font-weight: 700;
+            letter-spacing: 0.4px;
+            box-shadow: var(--shadow-card);
+        }
+
+        .wayground-question-text {
+            font-size: clamp(20px, 2.2vw, 28px);
+            font-weight: 700;
+            line-height: 1.42;
+            letter-spacing: -0.015em;
+            color: var(--text-primary);
+            max-width: 1160px;
+            white-space: pre-line;
+        }
+
+        /* 4 Tall & Wide Horizontal Cards on Desktop, 2x2 on Tablet, Responsive Stack on Phone */
+        .wayground-options-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            align-items: stretch;
+            min-height: 320px;
+        }
+
+        .wayground-card {
+            position: relative;
+            min-height: 320px;
+            padding: 40px 26px 32px;
+            border-radius: 22px;
+            border: 2px solid var(--border-color);
+            background-color: var(--bg-surface);
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: clamp(16px, 1.35vw, 20px);
+            font-weight: 600;
+            line-height: 1.45;
+            text-align: center;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            box-shadow: var(--shadow-card);
+            transition: transform 0.14s cubic-bezier(0.2, 0, 0, 1),
+                        opacity 0.22s ease,
+                        background-color 0.18s ease,
+                        border-color 0.18s ease,
+                        box-shadow 0.18s ease;
+            user-select: none;
+        }
+
+        .wayground-card:hover:not(:disabled) {
+            transform: translateY(-5px);
+            border-color: var(--text-primary);
+            box-shadow: var(--shadow-hover);
+        }
+
+        /* Tactile Press-Down Effect when clicking/tapping or pressing 1,2,3,4 */
+        .wayground-card:active:not(:disabled),
+        .wayground-card.card-pressing {
+            transform: scale(0.95) translateY(3px) !important;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08) !important;
+            border-color: var(--accent) !important;
+        }
+
+        /* Key Badge (1, 2, 3, 4) in Top Right Corner like Wayground */
+        .wayground-key-badge {
+            position: absolute;
+            top: 14px;
+            right: 14px;
+            width: 30px;
+            height: 30px;
+            border-radius: 8px;
+            background-color: var(--bg-subtle);
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            font-size: 13px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.18s ease;
+        }
+
+        .wayground-card-text {
+            word-break: break-word;
+            max-width: 100%;
+        }
+
+        /* Exam Mode Selected State */
+        .wayground-card.selected-exam {
+            border-color: var(--accent);
+            background-color: var(--bg-subtle);
+            box-shadow: inset 0 0 0 1.5px var(--accent);
+        }
+
+        .wayground-card.selected-exam .wayground-key-badge {
+            background-color: var(--accent);
+            color: var(--accent-fg);
+            border-color: var(--accent);
+        }
+
+        /* Practice Mode Instant Feedback States (Solid Green, Solid Red, Fade Out Others) */
+        .wayground-card.wg-correct {
+            background-color: var(--correct-solid) !important;
+            border-color: var(--correct-solid) !important;
+            color: #FFFFFF !important;
+            font-weight: 600;
+            transform: translateY(-4px) scale(1.015);
+            box-shadow: 0 12px 28px rgba(22, 163, 74, 0.28);
+            z-index: 2;
+        }
+
+        .wayground-card.wg-correct .wayground-key-badge {
+            background-color: rgba(255, 255, 255, 0.22);
+            border-color: rgba(255, 255, 255, 0.4);
+            color: #FFFFFF;
+        }
+
+        .wayground-card.wg-wrong {
+            background-color: var(--wrong-solid) !important;
+            border-color: var(--wrong-solid) !important;
+            color: #FFFFFF !important;
+            font-weight: 600;
+            z-index: 2;
+        }
+
+        .wayground-card.wg-wrong .wayground-key-badge {
+            background-color: rgba(255, 255, 255, 0.22);
+            border-color: rgba(255, 255, 255, 0.4);
+            color: #FFFFFF;
+        }
+
+        /* Unselected wrong options fade out smoothly like in the video recording */
+        .wayground-card.wg-fade-out {
+            opacity: 0.14;
+            transform: scale(0.94);
+            pointer-events: none;
+            filter: grayscale(1);
+        }
+
+        /* Bottom Arena Controls & Auto-Advance Bar */
+        .arena-bottombar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            background-color: var(--bg-surface);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .auto-advance-bar {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            height: 3px;
+            background-color: var(--accent);
+            width: 0%;
+            transition: width linear;
+        }
+
+        .kb-hint {
+            font-size: 12.5px;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        /* Question Grid Palette */
+        .palette-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(42px, 1fr));
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .palette-btn {
+            height: 40px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            background-color: var(--bg-elevated);
+            color: var(--text-primary);
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .palette-btn.current {
+            border-color: var(--accent);
+            box-shadow: inset 0 0 0 1.5px var(--accent);
+        }
+
+        .palette-btn.answered {
+            background-color: var(--accent);
+            color: var(--accent-fg);
+            border-color: var(--accent);
+        }
+
+        .palette-btn.right {
+            background-color: var(--correct-solid);
+            border-color: var(--correct-solid);
+            color: #FFFFFF;
+        }
+
+        .palette-btn.wrong {
+            background-color: var(--wrong-solid);
+            border-color: var(--wrong-solid);
+            color: #FFFFFF;
+        }
+
+        /* Result Summary */
+        .score-box {
+            text-align: center;
+            padding: 32px 20px;
+            background-color: var(--bg-surface);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-card);
+        }
+
+        .score-big {
+            font-size: 48px;
+            font-weight: 800;
+            letter-spacing: -1.5px;
+            line-height: 1.1;
+            margin: 8px 0;
+        }
+
+        .review-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .review-item {
+            padding: 16px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border-color);
+            background-color: var(--bg-elevated);
+            font-size: 14px;
+        }
+
+        .review-q {
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--text-primary);
+        }
+
+        /* Toast notification */
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%) translateY(20px);
+            background-color: var(--accent);
+            color: var(--accent-fg);
+            padding: 12px 20px;
+            border-radius: var(--radius-sm);
+            font-size: 14px;
+            font-weight: 600;
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.2s ease;
+            z-index: 100;
+            max-width: 90vw;
+            text-align: center;
+            box-shadow: var(--shadow-hover);
+        }
+
+        .toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        /* Responsive Breakpoints for Desktop, Tablet, and Mobile */
+        @media (max-width: 1100px) {
+            .wayground-options-grid {
+                grid-template-columns: repeat(2, 1fr);
+                min-height: 280px;
+            }
+            .wayground-card {
+                min-height: 200px;
+                padding: 30px 20px 24px;
+            }
+            .wayground-question-box {
+                min-height: 200px;
+                padding: 38px 28px 32px;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .top-header {
+                padding: 12px 14px;
+            }
+            .active-location-pill, .kb-hint {
+                display: none;
+            }
+            .workflow-steps, .mode-selector {
+                grid-template-columns: 1fr;
+            }
+            .main-container.arena-mode {
+                padding: 10px 12px 16px;
+            }
+            #view-player.active {
+                min-height: calc(100vh - 24px);
+                gap: 12px;
+            }
+            .arena-topbar {
+                padding: 8px 12px;
+                border-radius: var(--radius-md);
+            }
+            .arena-progress-wrap {
+                display: none;
+            }
+            .wayground-question-box {
+                min-height: 165px;
+                padding: 32px 18px 24px;
+                border-radius: 16px;
+            }
+            .wayground-options-grid {
+                grid-template-columns: 1fr;
+                gap: 12px;
+                min-height: auto;
+            }
+            .wayground-card {
+                min-height: 86px;
+                padding: 20px 48px 20px 20px;
+                border-radius: 16px;
+                text-align: left;
+                align-items: flex-start;
+            }
+            .deck-actions .btn {
+                flex: 1 1 calc(50% - 10px);
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Sticky Header with Unmistakable Segmented Navigation & Theme Switcher -->
+    <header class="top-header" id="main-header">
+        <div class="header-inner">
+            <div class="brand-row">
+                <div class="brand-left">
+                    <div class="brand-title" onclick="switchMainTab('library')">QuizMaster</div>
+                    <span class="domain-badge">quizmaster.com</span>
+                </div>
+                <div class="header-right-controls">
+                    <div class="active-location-pill" id="header-context-pill">Thư viện của tôi</div>
+                    <button type="button" class="theme-toggle-btn" id="theme-toggle-btn" onclick="toggleTheme()">Giao diện: Sáng</button>
+                </div>
+            </div>
+            <nav class="segmented-nav" aria-label="Điều hướng chính">
+                <button type="button" class="seg-btn active" id="tab-btn-library" onclick="switchMainTab('library')">
+                    <span class="status-dot"></span>
+                    <span>Thư viện của tôi</span>
+                    <span class="seg-count" id="nav-deck-count">1</span>
+                </button>
+                <button type="button" class="seg-btn" id="tab-btn-create" onclick="switchMainTab('create')">
+                    <span class="status-dot"></span>
+                    <span>+ Tạo bộ đề mới</span>
+                </button>
+            </nav>
+        </div>
+    </header>
+
+    <main class="main-container" id="main-container">
+
+        <!-- ==========================================
+             VIEW 1: THƯ VIỆN BỘ ĐỀ (LIBRARY VIEW)
+        =========================================== -->
+        <section id="view-library" class="view active">
+            <div class="context-banner">
+                <span class="context-eyebrow">ĐANG Ở MỤC: THƯ VIỆN CỦA TÔI</span>
+                <h1 class="context-title">Thư viện bộ đề trắc nghiệm</h1>
+                <p class="context-desc" id="library-subtitle">Chọn một bộ đề bên dưới để bắt đầu luyện tập theo giao diện Wayground. Dữ liệu được lưu tự động trên thiết bị của bạn.</p>
+            </div>
+
+            <div class="deck-list" id="deck-list-container">
+                <!-- Injected dynamically via JS -->
+            </div>
+        </section>
+
+        <!-- ==========================================
+             VIEW 2: TẠO BỘ ĐỀ MỚI (CREATE / OCR VIEW)
+        =========================================== -->
+        <section id="view-create" class="view">
+            <div class="context-banner">
+                <span class="context-eyebrow">ĐANG Ở MỤC: TẠO BỘ ĐỀ MỚI</span>
+                <h1 class="context-title">Tạo bộ đề trắc nghiệm mới</h1>
+                <p class="context-desc">Tải ảnh chụp đề cương từ thư viện điện thoại để quét chữ tự động (OCR) hoặc dán trực tiếp văn bản câu hỏi theo mẫu chuẩn.</p>
+                <div class="workflow-steps">
+                    <div class="step-item"><strong>Bước 1</strong>Đặt tên & Chọn ảnh từ Thư viện</div>
+                    <div class="step-item"><strong>Bước 2</strong>Kiểm tra số câu nhận diện</div>
+                    <div class="step-item"><strong>Bước 3</strong>Lưu vào Thư viện hoặc Làm ngay</div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="form-group">
+                    <label class="form-label" for="deck-title-input">1. Tên bộ đề</label>
+                    <input type="text" id="deck-title-input" class="input-text" placeholder="Ví dụ: Đề cương Lịch sử 12 - Giữa kì 1">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">2. Quét chữ từ ảnh trong Thư viện điện thoại / Máy tính (OCR)</label>
+                    <div class="ocr-box">
+                        <div class="form-hint">Bấm nút bên dưới để mở trực tiếp Thư viện ảnh trên điện thoại hoặc chụp ảnh đề giấy.</div>
+                        <div class="ocr-actions">
+                            <label class="btn btn-primary btn-sm" for="ocr-file-input">
+                                Chọn ảnh từ Thư viện / Chụp ảnh
+                                <input type="file" id="ocr-file-input" accept="image/*" multiple>
+                            </label>
+                            <button type="button" class="btn btn-sm" onclick="fillSampleTemplate()">Chèn mẫu định dạng chuẩn</button>
+                        </div>
+                        <div class="ocr-status" id="ocr-status-text">Chưa có ảnh nào được chọn.</div>
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 8px;">
+                    <div style="display: flex; justify-content: space-between; align-items: baseline;">
+                        <label class="form-label" for="raw-quiz-input">3. Nội dung văn bản đề thi</label>
+                        <button type="button" class="btn btn-sm" style="min-height: 30px; padding: 4px 10px;" onclick="clearCreateForm()">Xóa trắng</button>
+                    </div>
+                    <div class="form-hint" style="margin-bottom: 6px;">
+                        Định dạng chuẩn: Bắt đầu bằng <strong>Câu X:</strong>, theo sau là 4 dòng <strong>A. B. C. D.</strong> và kết thúc bằng <strong>Đáp án: X</strong>
+                    </div>
+                    <textarea id="raw-quiz-input" class="textarea-code" placeholder="Câu 1: Nội dung câu hỏi?&#10;A. Phương án A&#10;B. Phương án B&#10;C. Phương án C&#10;D. Phương án D&#10;Đáp án: A"></textarea>
+                </div>
+
+                <div class="parser-bar">
+                    <span>Trạng thái nhận diện tự động:</span>
+                    <span class="parser-count" id="live-parse-count">0 câu hợp lệ</span>
+                </div>
+
+                <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+                    <button type="button" class="btn btn-primary" style="flex: 2;" onclick="saveDeckAndStart(false)">Lưu vào Thư viện</button>
+                    <button type="button" class="btn" style="flex: 1;" onclick="saveDeckAndStart(true)">Lưu & Làm ngay</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==========================================
+             VIEW 3: TÙY CHỌN TRƯỚC KHI LÀM BÀI (SETUP)
+        =========================================== -->
+        <section id="view-setup" class="view">
+            <div class="context-banner">
+                <span class="context-eyebrow">THIẾT LẬP PHÒNG THI</span>
+                <h1 class="context-title" id="setup-deck-title">Tên bộ đề</h1>
+                <p class="context-desc" id="setup-deck-meta">50 câu hỏi</p>
+            </div>
+
+            <div class="card">
+                <div class="section-label">Chọn chế độ tương tác</div>
+                <div class="mode-selector">
+                    <div class="mode-card selected" id="mode-card-practice" onclick="selectQuizMode('practice')">
+                        <div class="mode-card-title">Wayground Luyện tập (Khuyên dùng)</div>
+                        <div class="mode-card-desc">Chọn thẻ nào làm mờ ngay các thẻ thừa, hiện xanh/đỏ và tự động qua câu tiếp theo.</div>
+                    </div>
+                    <div class="mode-card" id="mode-card-exam" onclick="selectQuizMode('exam')">
+                        <div class="mode-card-title">Kiểm tra (Thi thử)</div>
+                        <div class="mode-card-desc">Chọn đáp án và tự chuyển câu, chỉ chấm điểm khi bấm nộp bài ở cuối đề.</div>
+                    </div>
+                </div>
+
+                <div class="section-label" style="margin-top: 20px;">Tùy chỉnh phiên làm bài</div>
+                <div class="config-grid">
+                    <label class="toggle-row">
+                        <div class="toggle-info">
+                            <span class="toggle-title">Đảo ngẫu nhiên vị trí 4 thẻ đáp án</span>
+                            <span class="toggle-sub">Chống học vẹt vị trí A, B, C, D như trên Wayground.</span>
+                        </div>
+                        <input type="checkbox" id="chk-shuffle-options" class="checkbox-input" checked>
+                    </label>
+                    <label class="toggle-row">
+                        <div class="toggle-info">
+                            <span class="toggle-title">Xáo trộn thứ tự câu hỏi</span>
+                            <span class="toggle-sub">Đổi ngẫu nhiên thứ tự các câu trong đề.</span>
+                        </div>
+                        <input type="checkbox" id="chk-shuffle-questions" class="checkbox-input">
+                    </label>
+                    <label class="toggle-row">
+                        <div class="toggle-info">
+                            <span class="toggle-title">Tự động chuyển sang câu tiếp theo</span>
+                            <span class="toggle-sub">Sau khi chọn đáp án 1.4 giây sẽ tự động lướt sang câu kế tiếp.</span>
+                        </div>
+                        <input type="checkbox" id="chk-auto-advance" class="checkbox-input" checked>
+                    </label>
+                </div>
+
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button type="button" class="btn" onclick="switchMainTab('library')">Quay lại Thư viện</button>
+                    <button type="button" class="btn btn-primary" style="flex: 1;" onclick="launchQuizSession()">Bắt đầu vào làm bài →</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==========================================
+             VIEW 4: MÀN HÌNH LÀM QUIZ (WAYGROUND ARENA)
+        =========================================== -->
+        <section id="view-player" class="view">
+            <!-- Top Arena Bar -->
+            <div class="arena-topbar">
+                <div class="arena-top-left">
+                    <button type="button" class="btn btn-sm" onclick="exitQuizToLibrary()">← Thoát</button>
+                    <div class="arena-stat-pill" id="arena-score-pill">Đúng: 0</div>
+                </div>
+
+                <div class="arena-progress-wrap">
+                    <div class="progress-track">
+                        <div class="progress-fill" id="player-progress-bar"></div>
+                    </div>
+                </div>
+
+                <div class="arena-top-right">
+                    <button type="button" class="btn btn-sm" id="btn-toggle-auto" onclick="toggleAutoAdvanceLive()">Tự chuyển: Bật</button>
+                    <button type="button" class="btn btn-sm" onclick="togglePaletteDrawer()">Bảng câu hỏi</button>
+                    <button type="button" class="theme-toggle-btn" onclick="toggleTheme()" id="arena-theme-btn">Sáng/Tối</button>
+                </div>
+            </div>
+
+            <!-- Collapsible Question Navigator Palette -->
+            <div class="card" id="palette-drawer" style="display: none; padding: 16px;">
+                <div class="section-label" style="margin-bottom: 4px;">
+                    <span>Danh sách câu hỏi</span>
+                    <span id="palette-answered-stat" style="text-transform: none; font-weight: 500;">Đã làm: 0</span>
+                </div>
+                <div class="palette-grid" id="palette-grid-container"></div>
+            </div>
+
+            <!-- Center Wayground Stage -->
+            <div class="arena-stage">
+                <div class="wayground-question-box">
+                    <div class="wayground-counter-pill" id="player-progress-text">1 / 50</div>
+                    <div class="wayground-question-text" id="player-q-text">Nội dung câu hỏi...</div>
+                </div>
+
+                <div class="wayground-options-grid" id="player-options-container">
+                    <!-- 4 Wayground Cards injected here -->
+                </div>
+            </div>
+
+            <!-- Bottom Navigation & Auto-Advance Progress Indicator -->
+            <div class="arena-bottombar">
+                <button type="button" class="btn btn-sm" id="btn-prev-q" onclick="navigateQuestion(-1)">← Câu trước</button>
+                <span class="kb-hint">Mẹo: Bấm phím số <strong>1, 2, 3, 4</strong> trên bàn phím để chọn nhanh</span>
+                <div style="display: flex; gap: 8px;">
+                    <button type="button" class="btn btn-primary btn-sm" id="btn-next-q" onclick="navigateQuestion(1)">Câu tiếp theo →</button>
+                    <button type="button" class="btn btn-primary btn-sm" id="btn-finish-quiz" style="display: none;" onclick="finishQuizSession()">Nộp bài & Xem điểm</button>
+                </div>
+                <div class="auto-advance-bar" id="auto-advance-bar"></div>
+            </div>
+        </section>
+
+        <!-- ==========================================
+             VIEW 5: KẾT QUẢ & XEM LẠI (RESULTS VIEW)
+        =========================================== -->
+        <section id="view-result" class="view">
+            <div class="score-box">
+                <span class="context-eyebrow">HOÀN THÀNH BÀI LÀM</span>
+                <div class="score-big" id="res-score-number">0 / 0</div>
+                <p class="context-desc" id="res-score-percent">Độ chính xác: 0%</p>
+
+                <div style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 20px;">
+                    <button type="button" class="btn btn-primary" id="btn-retry-wrong" onclick="retryWrongQuestions()">Làm lại các câu sai</button>
+                    <button type="button" class="btn" onclick="restartFullActiveDeck()">Làm lại toàn bộ đề</button>
+                    <button type="button" class="btn" onclick="switchMainTab('library')">Về Thư viện</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="section-label">Chi tiết đáp án</div>
+                <div class="review-list" id="res-review-list"></div>
+            </div>
+        </section>
+
+    </main>
+
+    <div id="toast" class="toast">Thông báo</div>
+
+    <script>
+        /* =========================================================
+           DEFAULT PRE-LOADED 50 QUESTIONS (TIN HỌC 12 - TRẦN NGUYÊN HÃN)
+        ========================================================= */
+        const DEFAULT_TIN12_RAW = `Câu 1: AI là tên viết tắt của thuật ngữ nào?
+A. Artificial Intelligence
+B. Automatic Internet
+C. Advanced Interface
+D. Applied Information
+Đáp án: A
+
+Câu 2: Sự kiện nào đánh dấu sự khởi đầu của lịch sử trí tuệ nhân tạo?
+A. Hội thảo tại MIT vào năm 1960.
+B. Hội thảo tại Stanford vào năm 1955.
+C. Hội thảo Dartmouth năm 1956.
+D. Sự phát triển của hệ thống MYCIN vào những năm 1970
+Đáp án: C
+
+Câu 3. Giải pháp nào được đề xuất nhằm đảm bảo sự phát triển an toàn và bền vững của AI đối với xã hội?
+A. Xây dựng các ràng buộc pháp lý, đảm bảo tính minh bạch và giám sát chặt chẽ
+B. Không cần kiểm soát vì AI không thể gây nguy hại
+C. Cho phép AI tự do ra quyết định điều khiển các loại vũ khí sát thương
+D. Cấm hoàn toàn việc nghiên cứu và phát triển AI
+Đáp án: A
+
+Câu 4. Phân loại AI theo chức năng bao gồm hai loại chính là:
+A. Trí tuệ nhân tạo học máy và Trí tuệ nhân tạo sinh.
+B. Trí tuệ nhân tạo hẹp (AI yếu) và Trí tuệ nhân tạo tổng quát (AI mạnh).
+C. AI nhận dạng hình ảnh và AI xử lý ngôn ngữ tự nhiên.
+D. Hệ chuyên gia và Robot thông minh.
+Đáp án: B
+
+Câu 5: Khả năng nào sau đây KHÔNG phải là đặc trưng của AI?
+A. Khả năng học.
+B. Khả năng nhận thức.
+C. Khả năng bay.
+D. Khả năng hiểu ngôn ngữ
+Đáp án: C
+
+Câu 6: Vì sao cần quan tâm quyền riêng tư khi sử dụng AI?
+A. Vì dữ liệu cá nhân có thể bị thu thập, sử dụng không phù hợp
+B. Vì AI không xử lí dữ liệu
+C. Vì mọi thông tin trên mạng đều công khai
+D. Vì quyền riêng tư chỉ liên quan đến máy in
+Đáp án: A
+
+Câu 7: Lĩnh vực nào liên quan đến việc thu nhận và phân tích nhận dạng hình ảnh?
+A. Học máy.
+B. Xử lý ngôn ngữ tự nhiên.
+C. Thị giác máy tính.
+D. AI tạo sinh.
+Đáp án: C
+
+Câu 8: ChatGPT trong bài học được giới thiệu là ví dụ của loại hệ thống nào?
+A. AI tạo sinh có khả năng tương tác bằng ngôn ngữ
+B. Thiết bị chuyển mạch
+C. Máy in mạng
+D. Giao thức truyền dữ liệu.
+Đáp án: A
+
+Câu 9. Một học sinh nhận câu trả lời từ ChatGPT về kiến thức khoa học. Việc nên làm là gì?
+A. Đối chiếu với sách giáo khoa hoặc nguồn đáng tin cậy
+B. Chép nguyên văn không kiểm tra
+C. Xem câu trả lời là chắc chắn đúng
+D. Bỏ qua mọi tài liệu khác
+Đáp án: A
+
+Câu 10: Khi dùng AI để hỗ trợ viết bài, hành động nào thể hiện sử dụng có trách nhiệm?
+A. Kiểm tra, chỉnh sửa và tự chịu trách nhiệm về sản phẩm
+B. Nộp nguyên kết quả AI mà không đọc
+C. Cung cấp mật khẩu cho AI
+D. Dùng AI để tạo tin sai lệch
+Đáp án: A
+
+Câu 11: Vì sao robot có thể được xem là ứng dụng AI khi có khả năng tự nhận biết và phản ứng với môi trường?
+A. Vì robot luôn có hình người
+B. Vì robot có thể xử lí thông tin để đưa ra hành động
+C. Vì robot chỉ dùng pin
+D. Vì robot luôn kết nối máy in
+Đáp án: B
+
+Câu 12: Một ứng dụng đề xuất đường đi dựa trên tình trạng giao thông. Dấu hiệu nào thể hiện rõ nhất AI?
+A. Tự phân tích dữ liệu và đề xuất lộ trình phù hợp
+B. Hiển thị biểu tượng ứng dụng
+C. Có nút phóng to bản đồ
+D. Cho phép đổi hình nền
+Đáp án: A
+
+Câu 13: Nhận dạng vân tay và khuôn mặt trên điện thoại di động là ứng dụng của AI trong lĩnh vực nào?
+A. Thiết kế đồ họa.
+B. Điều khiển tự động.
+C. Tiện ích thông minh.
+D. Dịch vụ khách hàng.
+Đáp án: C
+
+Câu 14: AI đã tạo ra những trợ lý ảo nào sau đây?
+A. Google Assistant, Siri, Bixby
+B. YouTube, Netflix, Spotify
+C. Photoshop, Illustrator, CorelDRAW
+D. Word, Excel, PowerPoint
+Đáp án: A
+
+Câu 15: AI được sử dụng trong tài chính ngân hàng để làm gì?
+A. Thiết kế logo.
+B. Phát hiện các giao dịch đáng ngờ và gian lận.
+C. Quản lý kho hàng.
+D. Tối ưu hóa quảng cáo
+Đáp án: B
+
+Câu 16: Đặc trưng nào sau đây thể hiện khả năng học của AI?
+A. Chỉ lưu dữ liệu không thay đổi
+B. Rút ra tri thức từ dữ liệu để cải thiện kết quả
+C. Chỉ chạy khi mất kết nối mạng
+D. Luôn làm việc không cần dữ liệu
+Đáp án: B
+
+Câu 17: Một lợi ích của AI trong giáo dục là gì?
+A. Hỗ trợ học tập được cá nhân hóa
+B. Bắt buộc mọi học sinh học giống nhau
+C. Thay thế hoàn toàn giáo viên
+D. Ngăn học sinh tra cứu tài liệu
+Đáp án: A
+
+Câu 18: AI có thể vi phạm quyền riêng tư bằng cách nào?
+A. Tăng cường bảo mật dữ liệu.
+B. Thu thập và lạm dụng dữ liệu cá nhân.
+C. Tối ưu hóa quy trình sản xuất.
+D. Cải thiện giao tiếp giữa các thiết bị
+Đáp án: B
+
+Câu 19: Nguy cơ xã hội nào được bài học đề cập khi AI phát triển?
+A. Một số công việc có thể bị thay thế hoặc thay đổi
+B. Mọi thiết bị mạng biến mất
+C. Internet ngừng hoạt động
+D. Không còn nhu cầu học tập
+Đáp án: A
+
+Câu 20. Ứng dụng nào sau đây được bài học nêu là công cụ dịch tự động?
+A. Google Translate
+B. File Explorer
+C. Device Manager
+D. Paint
+Đáp án: A
+
+Câu 21. Thiết bị nào chuyển dữ liệu đến đúng cổng kết nối dựa trên địa chỉ thiết bị trong mạng LAN?
+A. Switch
+B. Hub
+C. Màn hình
+D. Máy quét
+Đáp án: A
+
+Câu 22. Hub có đặc điểm nào?
+A. Chuyển tín hiệu nhận được tới các cổng khác
+B. Định tuyến gói tin giữa các mạng
+C. Biến đổi tín hiệu Internet thành bản in
+D. Chỉ kết nối qua Bluetooth
+Đáp án: A
+
+Câu 23. Thiết bị nào thường tạo điểm truy cập không dây cho mạng LAN?
+A. Wireless Access Point
+B. Bàn phím
+C. Máy chiếu
+D. Ổ SSD
+Đáp án: A
+
+Câu 24. Router có chức năng chủ yếu nào?
+A. Kết nối và chuyển tiếp dữ liệu giữa các mạng
+B. Lưu ảnh vào bộ nhớ
+C. Soạn thảo văn bản
+D. Hiển thị trang in
+Đáp án: A
+
+Câu 25. Modem có chức năng chính nào?
+A. Biến đổi tín hiệu để kết nối đường truyền của nhà cung cấp dịch vụ
+B. Phát âm thanh
+C. Lưu dữ liệu trong RAM
+D. Chụp ảnh
+Đáp án: A
+
+Câu 26. So với hub, switch thường có ưu điểm nào trong mạng LAN?
+A. Hạn chế truyền dữ liệu không cần thiết đến các cổng khác
+B. Luôn cần nhiều dây hơn
+C. Không thể kết nối máy tính
+D. Chỉ hoạt động khi không có điện
+Đáp án: A
+
+Câu 27. Muốn kết nối máy tính với mạng LAN bằng cáp, đầu cắm thông dụng được bài học sử dụng là gì?
+A. RJ45
+B. HDMI
+C. USB-C chỉ để sạc
+D. Jack âm thanh 3,5 mm
+Đáp án: A
+
+Câu 28. Để kết nối điện thoại với mạng Wi-Fi có bảo vệ, người dùng thường cần gì?
+A. Chọn đúng mạng và nhập mật khẩu
+B. Đổi tên tệp hệ thống
+C. Cắm cáp máy in
+D. Tắt bộ phát Wi-Fi
+Đáp án: A
+
+Câu 29. Một phòng máy có nhiều máy tính nối dây và cần trao đổi dữ liệu nội bộ hiệu quả. Thiết bị nên ưu tiên là gì?
+A. Switch
+B. Hub khi cần giảm va chạm
+C. Máy in
+D. Webcam
+Đáp án: A
+
+Câu 30. Một lớp học đã có LAN có dây, muốn bổ sung truy cập Wi-Fi cho máy tính bảng. Thiết bị phù hợp nhất là gì?
+A. Wireless Access Point
+B. Hub không dây không tồn tại trong bài
+C. Máy quét
+D. Ổ cứng ngoài
+Đáp án: A
+
+Câu 31. Giao thức mạng là gì?
+A. Tập hợp các quy định để các thiết bị trao đổi dữ liệu
+B. Một loại bàn phím
+C. Một tệp ảnh
+D. Tên gọi của dây nguồn
+Đáp án: A
+
+Câu 32. IP là viết tắt của cụm từ nào?
+A. Internet Protocol
+B. Internal Printer
+C. Image Processing
+D. Input Port
+Đáp án: A
+
+Câu 33. TCP là viết tắt của cụm từ nào?
+A. Transmission Control Protocol
+B. Transfer Cable Port
+C. Terminal Computer Program
+D. Text Control Page
+Đáp án: A
+
+Câu 34. Địa chỉ IP được sử dụng chủ yếu để làm gì?
+A. Định danh địa chỉ và hỗ trợ định tuyến trên mạng
+B. Tăng độ sáng màn hình
+C. Chọn phông chữ
+D. In hai mặt
+Đáp án: A
+
+Câu 35. Vai trò quan trọng của giao thức TCP là gì?
+A. Hỗ trợ truyền dữ liệu tin cậy, đúng thứ tự
+B. Đổi màu giao diện mạng
+C. Cấp điện cho router
+D. Nén mọi tệp ảnh
+Đáp án: A
+
+Câu 36. Địa chỉ IPv4 được bài học mô tả có độ dài bao nhiêu?
+A. 32 bit
+B. 8 bit
+C. 16 bit
+D. 128 bit
+Đáp án: A
+
+Câu 37. Thiết bị nào thường lựa chọn đường chuyển tiếp gói tin giữa các mạng?
+A. Router
+B. Chuột
+C. Màn hình
+D. Máy in
+Đáp án: A
+
+Câu 38. Một máy tính cần gửi dữ liệu đến máy ở mạng khác. Thông tin nào quan trọng cho quá trình định tuyến?
+A. Địa chỉ IP đích
+B. Màu vỏ máy
+C. Tên người dùng trong trình soạn thảo
+D. Kích thước màn hình
+Đáp án: A
+
+Câu 39. Địa chỉ MAC gồm bao nhiêu ký tự hệ thập lục phân?
+A. 8
+B. 10
+C. 12
+D. 16
+Đáp án: C
+
+Câu 40. Thiết bị nào cung cấp kết nối Wi-Fi trong mạng cục bộ?
+A. Switch
+B. Router
+C. Access Point
+D. Modem
+Đáp án: C
+
+Câu 41. Giao thức mạng là gì?
+A. Tập hợp các quy định về cách thức giao tiếp để truyền dữ liệu.
+B. Một loại phần cứng trong máy tính
+C. Một dạng phần mềm ứng dụng
+D. Một loại kết nối vật lý trong mạng
+Đáp án: A
+
+Câu 42. Chia sẻ tài nguyên trên mạng LAN có thể bao gồm đối tượng nào?
+A. Tệp, thư mục và máy in
+B. Chỉ hình nền
+C. Chỉ bộ nhớ đệm
+D. Chỉ bàn phím vật lí
+Đáp án: A
+
+Câu 43. Muốn các máy khác trong mạng tìm thấy máy tính chia sẻ, chức năng nào thường cần bật?
+A. Network discovery
+B. Chế độ máy bay
+C. Tắt kết nối mạng
+D. Định dạng ổ đĩa
+Đáp án: A
+
+Câu 44. Để sử dụng máy in đã chia sẻ từ máy khác, điều kiện phù hợp là gì?
+A. Các máy có kết nối mạng và được phép truy cập máy in
+B. Hai máy phải dùng chung màn hình
+C. Chỉ cần có cáp HDMI
+D. Máy in phải ngắt khỏi máy chủ
+Đáp án: A
+
+Câu 45. Không gian mạng trong bài học (SGK) được hiểu là gì?
+A. Môi trường được tạo ra nhờ sự kết nối của các mạng và hệ thống thông tin
+B. Một căn phòng máy tính
+C. Một ổ đĩa cục bộ
+D. Một loại máy in
+Đáp án: A
+
+Câu 46. Ưu điểm nào của giao tiếp trong không gian mạng được bài học đề cập?
+A. Tiết kiệm thời gian và chi phí
+B. Luôn bảo đảm mọi thông tin đều đúng
+C. Không có rủi ro
+D. Không cần thiết bị kết nối
+Đáp án: A
+
+Câu 47. Hạn chế nào có thể xuất hiện khi giao tiếp qua mạng?
+A. Thiếu tín hiệu phi ngôn ngữ nên dễ hiểu nhầm
+B. Luôn nhìn thấy toàn bộ cử chỉ
+C. Không thể gửi văn bản
+D. Không thể giao tiếp ở xa
+Đáp án: A
+
+Câu 48. Trong nhóm học tập trực tuyến có ý kiến khác nhau, cách ứng xử nào phù hợp?
+A. Trao đổi lịch sự, tôn trọng quan điểm khác biệt
+B. Dùng lời lẽ xúc phạm
+C. Chia sẻ thông tin riêng tư của bạn
+D. Đăng tin chưa kiểm chứng để gây tranh cãi
+Đáp án: A
+
+Câu 49. Nhận được một thông tin gây sốc trong nhóm chat, nên làm gì trước khi chuyển tiếp?
+A. Kiểm tra nguồn và độ tin cậy
+B. Chuyển tiếp ngay cho mọi người
+C. Thêm lời bình kích động
+D. Đăng công khai không cần đọc
+Đáp án: A
+
+Câu 50. Ứng xử nhân văn trên không gian mạng có thể góp phần tạo ra điều gì?
+A. Một môi trường mạng tiêu cực
+B. Sự gia tăng của hành vi bắt nạt trực tuyến
+C. Một xã hội mạng tích cực
+D. Tăng nguy cơ lừa đảo trực tuyến
+Đáp án: C`;
+
+        /* =========================================================
+           STATE & STORAGE MANAGEMENT
+        ========================================================= */
+        const STORAGE_KEY = 'quizz_master_decks_v2';
+        const THEME_KEY = 'quizmaster_theme_pref';
+        let decks = [];
+        let selectedDeckId = null;
+        let editingDeckId = null;
+        let quizMode = 'practice'; // 'practice' | 'exam'
+        let autoAdvanceEnabled = true;
+        let autoAdvanceTimer = null;
+
+        // Active session state
+        let sessionQuestions = [];
+        let currentQIndex = 0;
+        let userAnswers = {}; // index -> chosen letter ('A','B','C','D')
+
+        /* =========================================================
+           THEME (LIGHT / DARK) MANAGEMENT
+        ========================================================= */
+        function initTheme() {
+            const savedTheme = localStorage.getItem(THEME_KEY) || 'light';
+            applyTheme(savedTheme);
+        }
+
+        function applyTheme(theme) {
+            if (theme === 'dark') {
+                document.documentElement.setAttribute('data-theme', 'dark');
+                document.getElementById('theme-toggle-btn').textContent = 'Giao diện: Tối';
+            } else {
+                document.documentElement.removeAttribute('data-theme');
+                document.getElementById('theme-toggle-btn').textContent = 'Giao diện: Sáng';
+            }
+            localStorage.setItem(THEME_KEY, theme);
+        }
+
+        function toggleTheme() {
+            const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+            applyTheme(isDark ? 'light' : 'dark');
+        }
+
+        function showToast(msg) {
+            const t = document.getElementById('toast');
+            t.textContent = msg;
+            t.classList.add('show');
+            setTimeout(() => t.classList.remove('show'), 2600);
+        }
+
+        function parseQuizText(rawText) {
+            if (!rawText || !rawText.trim()) return [];
+            const lines = rawText.replace(/\r\n/g, '\n').split('\n');
+            const questions = [];
+            let currentQ = null;
+            let currentOptKey = null;
+
+            const qStartRegex = /^C[âa]u\s+\d+\s*[:\.]?\s*(.*)/i;
+            const optRegex = /^([A-D])[\.\)]\s*(.*)/i;
+            const ansRegex = /^(?:Đáp\s*án|Dap\s*an)\s*[:\-]?\s*([A-D])/i;
+
+            for (let rawLine of lines) {
+                const line = rawLine.trim();
+                if (!line) continue;
+
+                const qMatch = line.match(qStartRegex);
+                if (qMatch) {
+                    if (currentQ && currentQ.question && currentQ.options.A && currentQ.options.B && currentQ.correct) {
+                        questions.push(currentQ);
+                    }
+                    currentQ = {
+                        question: qMatch[1].trim(),
+                        options: { A: '', B: '', C: '', D: '' },
+                        correct: ''
+                    };
+                    currentOptKey = null;
+                    continue;
+                }
+
+                if (!currentQ) continue;
+
+                const ansMatch = line.match(ansRegex);
+                if (ansMatch) {
+                    currentQ.correct = ansMatch[1].toUpperCase();
+                    currentOptKey = null;
+                    continue;
+                }
+
+                const optMatch = line.match(optRegex);
+                if (optMatch) {
+                    const key = optMatch[1].toUpperCase();
+                    currentQ.options[key] = optMatch[2].trim();
+                    currentOptKey = key;
+                    continue;
+                }
+
+                // Multi-line continuation
+                if (currentOptKey) {
+                    currentQ.options[currentOptKey] += ' ' + line;
+                } else {
+                    currentQ.question += (currentQ.question ? '\n' : '') + line;
+                }
+            }
+
+            if (currentQ && currentQ.question && currentQ.options.A && currentQ.options.B && currentQ.correct) {
+                questions.push(currentQ);
+            }
+
+            return questions;
+        }
+
+        function loadDecksFromStorage() {
+            try {
+                const saved = localStorage.getItem(STORAGE_KEY);
+                if (saved) {
+                    decks = JSON.parse(saved);
+                }
+            } catch (e) {
+                decks = [];
+            }
+
+            if (!Array.isArray(decks) || decks.length === 0) {
+                const defaultParsed = parseQuizText(DEFAULT_TIN12_RAW);
+                decks = [{
+                    id: 'deck_tin12_tnh',
+                    title: 'Đề cương Giữa kì 1 - Tin học 12 (THPT Trần Nguyên Hãn)',
+                    rawText: DEFAULT_TIN12_RAW,
+                    questions: defaultParsed,
+                    lastScore: null,
+                    updatedAt: 'Mặc định'
+                }];
+                saveDecksToStorage();
+            }
+        }
+
+        function saveDecksToStorage() {
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(decks));
+            } catch (e) {
+                console.error(e);
+            }
+            updateNavCount();
+        }
+
+        function updateNavCount() {
+            document.getElementById('nav-deck-count').textContent = decks.length;
+        }
+
+        /* =========================================================
+           NAVIGATION & CLEAR ACTIVE VIEW INDICATION
+        ========================================================= */
+        function clearAutoAdvanceTimer() {
+            if (autoAdvanceTimer) {
+                clearTimeout(autoAdvanceTimer);
+                autoAdvanceTimer = null;
+            }
+            const bar = document.getElementById('auto-advance-bar');
+            if (bar) {
+                bar.style.transition = 'none';
+                bar.style.width = '0%';
+            }
+        }
+
+        function switchMainTab(tabName) {
+            clearAutoAdvanceTimer();
+            const btnLib = document.getElementById('tab-btn-library');
+            const btnCreate = document.getElementById('tab-btn-create');
+            const pill = document.getElementById('header-context-pill');
+            const mainHeader = document.getElementById('main-header');
+            const mainContainer = document.getElementById('main-container');
+
+            mainHeader.style.display = 'block';
+            mainContainer.classList.remove('arena-mode');
+            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+
+            if (tabName === 'library') {
+                btnLib.classList.add('active');
+                btnCreate.classList.remove('active');
+                pill.textContent = 'Thư viện của tôi';
+                document.getElementById('view-library').classList.add('active');
+                editingDeckId = null;
+                btnCreate.querySelector('span:nth-child(2)').textContent = '+ Tạo bộ đề mới';
+                renderLibraryList();
+            } else if (tabName === 'create') {
+                btnLib.classList.remove('active');
+                btnCreate.classList.add('active');
+                pill.textContent = editingDeckId ? 'Chỉnh sửa bộ đề' : 'Tạo bộ đề mới';
+                document.getElementById('view-create').classList.add('active');
+                updateLiveParserCount();
+            }
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function showSubView(viewId, pillText, isArena = false) {
+            clearAutoAdvanceTimer();
+            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+            document.getElementById(viewId).classList.add('active');
+            document.getElementById('header-context-pill').textContent = pillText;
+            document.getElementById('main-header').style.display = isArena ? 'none' : 'block';
+            document.getElementById('main-container').classList.toggle('arena-mode', isArena);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        /* =========================================================
+           LIBRARY RENDERING & DECK MANAGEMENT
+        ========================================================= */
+        function renderLibraryList() {
+            updateNavCount();
+            const container = document.getElementById('deck-list-container');
+            const subtitle = document.getElementById('library-subtitle');
+            subtitle.textContent = `Hiện có ${decks.length} bộ đề được lưu trong thư viện của bạn. Chọn một bộ đề bên dưới để bắt đầu học.`;
+
+            if (decks.length === 0) {
+                container.innerHTML = `
+                    <div class="card" style="text-align: center; padding: 36px 20px;">
+                        <div style="font-size: 16px; font-weight: 600; margin-bottom: 8px;">Thư viện đang trống</div>
+                        <p class="context-desc" style="margin-bottom: 16px;">Bạn chưa có bộ đề nào. Hãy chuyển sang mục Tạo bộ đề mới để quét ảnh hoặc dán văn bản đề thi.</p>
+                        <button type="button" class="btn btn-primary" onclick="switchMainTab('create')">+ Tạo bộ đề đầu tiên</button>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = decks.map(deck => {
+                const scoreBadge = deck.lastScore !== null && deck.lastScore !== undefined
+                    ? `<span class="meta-pill" style="color: var(--correct-text); background: var(--correct-bg);">Lần cuối: ${deck.lastScore}</span>`
+                    : `<span class="meta-pill">Chưa làm lần nào</span>`;
+
+                return `
+                    <article class="deck-card">
+                        <div class="deck-top">
+                            <div>
+                                <h2 class="deck-title">${escapeHtml(deck.title)}</h2>
+                                <div class="deck-meta">
+                                    <span class="meta-pill">${deck.questions.length} câu trắc nghiệm</span>
+                                    ${scoreBadge}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="deck-actions">
+                            <button type="button" class="btn btn-primary btn-sm" style="flex: 2;" onclick="openQuizSetup('${deck.id}')">Làm bài ngay →</button>
+                            <button type="button" class="btn btn-sm" onclick="editDeck('${deck.id}')">Sửa đề</button>
+                            <button type="button" class="btn btn-danger btn-sm" onclick="deleteDeck('${deck.id}')">Xóa</button>
+                        </div>
+                    </article>
+                `;
+            }).join('');
+        }
+
+        function editDeck(id) {
+            const deck = decks.find(d => d.id === id);
+            if (!deck) return;
+            editingDeckId = deck.id;
+            document.getElementById('deck-title-input').value = deck.title;
+            document.getElementById('raw-quiz-input').value = deck.rawText || '';
+            document.getElementById('tab-btn-create').querySelector('span:nth-child(2)').textContent = 'Đang sửa bộ đề';
+            switchMainTab('create');
+            showToast('Đang mở chế độ chỉnh sửa bộ đề');
+        }
+
+        function deleteDeck(id) {
+            if (decks.length === 1) {
+                showToast('Cần giữ lại ít nhất 1 bộ đề trong thư viện.');
+                return;
+            }
+            decks = decks.filter(d => d.id !== id);
+            saveDecksToStorage();
+            renderLibraryList();
+            showToast('Đã xóa bộ đề khỏi thư viện');
+        }
+
+        /* =========================================================
+           CREATE / OCR & LIVE PARSER
+        ========================================================= */
+        const rawQuizInput = document.getElementById('raw-quiz-input');
+        rawQuizInput.addEventListener('input', updateLiveParserCount);
+
+        function updateLiveParserCount() {
+            const parsed = parseQuizText(rawQuizInput.value);
+            const countEl = document.getElementById('live-parse-count');
+            countEl.textContent = `${parsed.length} câu hợp lệ được nhận diện`;
+            if (parsed.length > 0) {
+                countEl.classList.add('valid');
+            } else {
+                countEl.classList.remove('valid');
+            }
+        }
+
+        function fillSampleTemplate() {
+            const sample = `Câu 1: Thiết bị nào dùng để kết nối các mạng khác nhau và định tuyến gói tin?
+A. Switch
+B. Hub
+C. Router
+D. Máy in
+Đáp án: C
+
+Câu 2: Giao thức nào đảm bảo truyền dữ liệu tin cậy và đúng thứ tự?
+A. TCP
+B. IP
+C. HTTP
+D. DNS
+Đáp án: A`;
+            const cur = rawQuizInput.value.trim();
+            rawQuizInput.value = cur ? (cur + '\n\n' + sample) : sample;
+            if (!document.getElementById('deck-title-input').value.trim()) {
+                document.getElementById('deck-title-input').value = 'Bộ đề ôn tập mới';
+            }
+            updateLiveParserCount();
+            showToast('Đã chèn mẫu định dạng chuẩn');
+        }
+
+        function clearCreateForm() {
+            editingDeckId = null;
+            document.getElementById('deck-title-input').value = '';
+            rawQuizInput.value = '';
+            document.getElementById('ocr-status-text').textContent = 'Chưa có ảnh nào được chọn.';
+            updateLiveParserCount();
+        }
+
+        // Real Vietnamese OCR via Tesseract.js
+        document.getElementById('ocr-file-input').addEventListener('change', async (e) => {
+            const files = Array.from(e.target.files);
+            if (!files.length) return;
+
+            const statusEl = document.getElementById('ocr-status-text');
+            statusEl.textContent = `Đang nhận diện chữ tiếng Việt từ ${files.length} ảnh (vui lòng đợi vài giây)...`;
+
+            try {
+                let combinedText = '';
+                for (let i = 0; i < files.length; i++) {
+                    statusEl.textContent = `Đang quét ảnh ${i + 1} / ${files.length}...`;
+                    const result = await Tesseract.recognize(files[i], 'vie');
+                    combinedText += result.data.text + '\n\n';
+                }
+                const prev = rawQuizInput.value.trim();
+                rawQuizInput.value = prev ? (prev + '\n\n' + combinedText.trim()) : combinedText.trim();
+                statusEl.textContent = `Hoàn tất quét ${files.length} ảnh. Hãy kiểm tra và thêm dòng "Đáp án: X" nếu trong ảnh chưa có.`;
+                updateLiveParserCount();
+                showToast('Quét văn bản từ ảnh thành công!');
+            } catch (err) {
+                statusEl.textContent = 'Không thể quét tự động ảnh này. Bạn có thể dán văn bản trực tiếp vào ô bên dưới.';
+            } finally {
+                e.target.value = '';
+            }
+        });
+
+        function saveDeckAndStart(startImmediately) {
+            const titleInput = document.getElementById('deck-title-input').value.trim();
+            const rawText = rawQuizInput.value.trim();
+            const parsed = parseQuizText(rawText);
+
+            if (parsed.length === 0) {
+                showToast('Chưa nhận diện được câu hỏi nào! Hãy kiểm tra cấu trúc Câu X: ... A. B. C. D. ... Đáp án: X');
+                return;
+            }
+
+            const title = titleInput || `Bộ đề ngày ${new Date().toLocaleDateString('vi-VN')}`;
+            let targetId = editingDeckId;
+
+            if (editingDeckId) {
+                const idx = decks.findIndex(d => d.id === editingDeckId);
+                if (idx !== -1) {
+                    decks[idx].title = title;
+                    decks[idx].rawText = rawText;
+                    decks[idx].questions = parsed;
+                }
+                editingDeckId = null;
+            } else {
+                targetId = 'deck_' + Date.now();
+                decks.unshift({
+                    id: targetId,
+                    title: title,
+                    rawText: rawText,
+                    questions: parsed,
+                    lastScore: null,
+                    updatedAt: new Date().toLocaleDateString('vi-VN')
+                });
+            }
+
+            saveDecksToStorage();
+            clearCreateForm();
+
+            if (startImmediately) {
+                openQuizSetup(targetId);
+            } else {
+                switchMainTab('library');
+                showToast(`Đã lưu "${title}" (${parsed.length} câu) vào Thư viện!`);
+            }
+        }
+
+        /* =========================================================
+           QUIZ SETUP & SHUFFLE LOGIC
+        ========================================================= */
+        function openQuizSetup(deckId) {
+            const deck = decks.find(d => d.id === deckId);
+            if (!deck) return;
+            selectedDeckId = deckId;
+
+            document.getElementById('setup-deck-title').textContent = deck.title;
+            document.getElementById('setup-deck-meta').textContent = `Tổng số: ${deck.questions.length} câu trắc nghiệm`;
+            showSubView('view-setup', 'Mục: Chuẩn bị làm bài', false);
+        }
+
+        function selectQuizMode(mode) {
+            quizMode = mode;
+            document.getElementById('mode-card-practice').classList.toggle('selected', mode === 'practice');
+            document.getElementById('mode-card-exam').classList.toggle('selected', mode === 'exam');
+        }
+
+        function shuffleArray(arr) {
+            const copy = [...arr];
+            for (let i = copy.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [copy[i], copy[j]] = [copy[j], copy[i]];
+            }
+            return copy;
+        }
+
+        function buildSessionQuestions(sourceQuestions, shuffleQ, shuffleOpt) {
+            let list = sourceQuestions.map(q => ({
+                question: q.question,
+                options: { ...q.options },
+                correct: q.correct
+            }));
+
+            if (shuffleQ) {
+                list = shuffleArray(list);
+            }
+
+            if (shuffleOpt) {
+                const keys = ['A', 'B', 'C', 'D'];
+                list = list.map(q => {
+                    const correctContent = q.options[q.correct];
+                    const entries = shuffleArray([
+                        q.options.A,
+                        q.options.B,
+                        q.options.C,
+                        q.options.D
+                    ]);
+                    const newOptions = {};
+                    let newCorrect = 'A';
+                    keys.forEach((k, idx) => {
+                        newOptions[k] = entries[idx];
+                        if (entries[idx] === correctContent) {
+                            newCorrect = k;
+                        }
+                    });
+                    return {
+                        question: q.question,
+                        options: newOptions,
+                        correct: newCorrect
+                    };
+                });
+            }
+
+            return list;
+        }
+
+        function launchQuizSession(customQuestions = null) {
+            const deck = decks.find(d => d.id === selectedDeckId);
+            if (!deck && !customQuestions) return;
+
+            const shuffleOpt = document.getElementById('chk-shuffle-options').checked;
+            const shuffleQ = document.getElementById('chk-shuffle-questions').checked;
+            autoAdvanceEnabled = document.getElementById('chk-auto-advance').checked;
+            updateAutoAdvanceBtnText();
+
+            const baseQuestions = customQuestions || deck.questions;
+            sessionQuestions = buildSessionQuestions(baseQuestions, shuffleQ, shuffleOpt);
+            currentQIndex = 0;
+            userAnswers = {};
+
+            document.getElementById('palette-drawer').style.display = 'none';
+            showSubView('view-player', 'Đang làm bài', true);
+            renderActiveQuestion(true);
+        }
+
+        function toggleAutoAdvanceLive() {
+            autoAdvanceEnabled = !autoAdvanceEnabled;
+            document.getElementById('chk-auto-advance').checked = autoAdvanceEnabled;
+            updateAutoAdvanceBtnText();
+            if (!autoAdvanceEnabled) {
+                clearAutoAdvanceTimer();
+            }
+        }
+
+        function updateAutoAdvanceBtnText() {
+            const btn = document.getElementById('btn-toggle-auto');
+            if (btn) {
+                btn.textContent = `Tự chuyển: ${autoAdvanceEnabled ? 'Bật' : 'Tắt'}`;
+            }
+        }
+
+        function updateLiveScorePill() {
+            const correctCount = Object.keys(userAnswers).filter(idx => userAnswers[idx] === sessionQuestions[idx].correct).length;
+            const pill = document.getElementById('arena-score-pill');
+            if (pill) {
+                pill.textContent = `Đúng: ${correctCount}`;
+            }
+        }
+
+        function renderActiveQuestion(animateTransition = false) {
+            clearAutoAdvanceTimer();
+            const total = sessionQuestions.length;
+            const q = sessionQuestions[currentQIndex];
+            const chosen = userAnswers[currentQIndex];
+
+            document.getElementById('player-progress-text').textContent = `${currentQIndex + 1} / ${total}`;
+            document.getElementById('player-progress-bar').style.width = `${((currentQIndex + 1) / total) * 100}%`;
+            document.getElementById('player-q-text').textContent = q.question;
+            updateLiveScorePill();
+
+            const qBox = document.querySelector('.wayground-question-box');
+            if (animateTransition && qBox) {
+                qBox.classList.remove('animate-question-change');
+                void qBox.offsetWidth; // Trigger reflow for smooth slide-in
+                qBox.classList.add('animate-question-change');
+            }
+
+            const optsContainer = document.getElementById('player-options-container');
+            optsContainer.innerHTML = '';
+
+            const keys = ['A', 'B', 'C', 'D'];
+            keys.forEach((key, idx) => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.id = `wg-opt-card-${key}`;
+                btn.className = 'wayground-card';
+
+                if (animateTransition) {
+                    btn.classList.add('animate-card-change');
+                    btn.style.animationDelay = `${idx * 45}ms`;
+                }
+
+                if (chosen) {
+                    if (quizMode === 'practice') {
+                        btn.disabled = true;
+                        if (key === q.correct) {
+                            btn.classList.add('wg-correct');
+                        } else if (key === chosen && chosen !== q.correct) {
+                            btn.classList.add('wg-wrong');
+                        } else {
+                            btn.classList.add('wg-fade-out');
+                        }
+                    } else {
+                        if (key === chosen) {
+                            btn.classList.add('selected-exam');
+                        }
+                    }
+                }
+
+                btn.innerHTML = `
+                    <span class="wayground-key-badge">${idx + 1}</span>
+                    <div class="wayground-card-text">${key}. ${escapeHtml(q.options[key])}</div>
+                `;
+                btn.onclick = () => handleSelectOption(key);
+                optsContainer.appendChild(btn);
+            });
+
+            // Footer buttons
+            document.getElementById('btn-prev-q').disabled = (currentQIndex === 0);
+            const isLast = (currentQIndex === total - 1);
+            document.getElementById('btn-next-q').style.display = isLast ? 'none' : 'inline-flex';
+            document.getElementById('btn-finish-quiz').style.display = isLast ? 'inline-flex' : 'none';
+
+            renderPaletteGrid();
+        }
+
+        function handleSelectOption(key) {
+            if (quizMode === 'practice' && userAnswers[currentQIndex]) {
+                return;
+            }
+            const cardBtn = document.getElementById(`wg-opt-card-${key}`);
+            if (cardBtn) {
+                cardBtn.classList.add('card-pressing');
+            }
+
+            setTimeout(() => {
+                const isFirstTimeAnswering = !userAnswers[currentQIndex];
+                userAnswers[currentQIndex] = key;
+                renderActiveQuestion(false);
+
+                // Wayground Auto-Advance Mechanic
+                if (autoAdvanceEnabled && isFirstTimeAnswering) {
+                    const delayMs = quizMode === 'practice' ? 1300 : 450;
+                    const bar = document.getElementById('auto-advance-bar');
+                    if (bar) {
+                        bar.style.transition = 'none';
+                        bar.style.width = '0%';
+                        void bar.offsetWidth; // Force reflow
+                        bar.style.transition = `width ${delayMs}ms linear`;
+                        bar.style.width = '100%';
+                    }
+
+                    autoAdvanceTimer = setTimeout(() => {
+                        if (currentQIndex < sessionQuestions.length - 1) {
+                            currentQIndex++;
+                            renderActiveQuestion(true);
+                        } else {
+                            finishQuizSession();
+                        }
+                    }, delayMs);
+                }
+            }, 115);
+        }
+
+        // Keyboard shortcuts: 1, 2, 3, 4 or A, B, C, D and Left/Right arrows
+        window.addEventListener('keydown', (e) => {
+            const playerActive = document.getElementById('view-player').classList.contains('active');
+            if (!playerActive) return;
+
+            const keyMap = {
+                '1': 'A', '2': 'B', '3': 'C', '4': 'D',
+                'a': 'A', 'b': 'B', 'c': 'C', 'd': 'D',
+                'A': 'A', 'B': 'B', 'C': 'C', 'D': 'D'
+            };
+
+            if (keyMap[e.key]) {
+                e.preventDefault();
+                handleSelectOption(keyMap[e.key]);
+            } else if (e.key === 'ArrowRight') {
+                e.preventDefault();
+                if (currentQIndex < sessionQuestions.length - 1) {
+                    navigateQuestion(1);
+                }
+            } else if (e.key === 'ArrowLeft') {
+                e.preventDefault();
+                if (currentQIndex > 0) {
+                    navigateQuestion(-1);
+                }
+            }
+        });
+
+        function navigateQuestion(delta) {
+            clearAutoAdvanceTimer();
+            const nextIdx = currentQIndex + delta;
+            if (nextIdx >= 0 && nextIdx < sessionQuestions.length) {
+                currentQIndex = nextIdx;
+                renderActiveQuestion(true);
+            }
+        }
+
+        function togglePaletteDrawer() {
+            const drawer = document.getElementById('palette-drawer');
+            drawer.style.display = (drawer.style.display === 'none') ? 'block' : 'none';
+            renderPaletteGrid();
+        }
+
+        function renderPaletteGrid() {
+            const grid = document.getElementById('palette-grid-container');
+            const answeredCount = Object.keys(userAnswers).length;
+            document.getElementById('palette-answered-stat').textContent = `Đã trả lời: ${answeredCount} / ${sessionQuestions.length}`;
+
+            grid.innerHTML = sessionQuestions.map((q, idx) => {
+                let cls = 'palette-btn';
+                if (idx === currentQIndex) cls += ' current';
+                const ans = userAnswers[idx];
+                if (ans) {
+                    if (quizMode === 'practice') {
+                        cls += (ans === q.correct) ? ' right' : ' wrong';
+                    } else {
+                        cls += ' answered';
+                    }
+                }
+                return `<button type="button" class="${cls}" onclick="jumpToQuestion(${idx})">${idx + 1}</button>`;
+            }).join('');
+        }
+
+        function jumpToQuestion(idx) {
+            currentQIndex = idx;
+            renderActiveQuestion(true);
+        }
+
+        function exitQuizToLibrary() {
+            switchMainTab('library');
+        }
+
+        /* =========================================================
+           RESULTS & RETRY WRONG QUESTIONS
+        ========================================================= */
+        function finishQuizSession() {
+            const total = sessionQuestions.length;
+            let correctCount = 0;
+            const wrongList = [];
+
+            sessionQuestions.forEach((q, idx) => {
+                const userAns = userAnswers[idx];
+                if (userAns === q.correct) {
+                    correctCount++;
+                } else {
+                    wrongList.push(q);
+                }
+            });
+
+            const percent = Math.round((correctCount / total) * 100);
+            document.getElementById('res-score-number').textContent = `${correctCount} / ${total}`;
+            document.getElementById('res-score-percent').textContent = `Độ chính xác: ${percent}% (${total - correctCount} câu sai / chưa làm)`;
+
+            // Save score to deck
+            const deck = decks.find(d => d.id === selectedDeckId);
+            if (deck && total === deck.questions.length) {
+                deck.lastScore = `${correctCount}/${total} (${percent}%)`;
+                saveDecksToStorage();
+            }
+
+            const btnRetryWrong = document.getElementById('btn-retry-wrong');
+            btnRetryWrong.style.display = wrongList.length > 0 ? 'inline-flex' : 'none';
+            btnRetryWrong.textContent = `Làm lại ${wrongList.length} câu sai`;
+            btnRetryWrong.dataset.wrongJson = JSON.stringify(wrongList);
+
+            // Render review list
+            const reviewContainer = document.getElementById('res-review-list');
+            reviewContainer.innerHTML = sessionQuestions.map((q, idx) => {
+                const u = userAnswers[idx];
+                const isOk = (u === q.correct);
+                const statusBadge = isOk
+                    ? `<span style="color: var(--correct-text); font-weight: 700;">[Đúng]</span>`
+                    : `<span style="color: var(--wrong-text); font-weight: 700;">[Sai]</span>`;
+
+                return `
+                    <div class="review-item">
+                        <div class="review-q">${statusBadge} Câu ${idx + 1}: ${escapeHtml(q.question)}</div>
+                        <div style="color: var(--text-secondary); margin-bottom: 4px;">
+                            Bạn chọn: <strong>${u ? `${u}. ${escapeHtml(q.options[u])}` : 'Chưa chọn'}</strong>
+                        </div>
+                        <div style="color: var(--correct-text); font-weight: 600;">
+                            Đáp án đúng: ${q.correct}. ${escapeHtml(q.options[q.correct])}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            showSubView('view-result', 'Kết quả bài làm', false);
+        }
+
+        function retryWrongQuestions() {
+            const raw = document.getElementById('btn-retry-wrong').dataset.wrongJson;
+            if (!raw) return;
+            const wrongList = JSON.parse(raw);
+            if (!wrongList.length) return;
+            launchQuizSession(wrongList);
+        }
+
+        function restartFullActiveDeck() {
+            launchQuizSession(null);
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        // Initialize App
+        initTheme();
+        loadDecksFromStorage();
+        renderLibraryList();
+    </script>
+</body>
+</html>
